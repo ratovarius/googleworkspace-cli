@@ -6,15 +6,15 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ratovarius/cli.git"
+    "url": "https://github.com/ratovarius/googleworkspace-cli.git"
   },
   "author": {
     "name": "Justin Poehnelt",
     "email": "justin.poehnelt@gmail.com"
   },
-  "homepage": "https://github.com/ratovarius/cli",
+  "homepage": "https://github.com/ratovarius/googleworkspace-cli",
   "bugs": {
-    "url": "https://github.com/ratovarius/cli/issues"
+    "url": "https://github.com/ratovarius/googleworkspace-cli/issues"
   },
   "scripts": {
     "test": "cargo test",

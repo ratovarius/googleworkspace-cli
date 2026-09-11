@@ -19,13 +19,13 @@ Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JS
 > It is **not** an officially supported Google product.
 
 <p>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/ratovarius/cli" alt="license"></a>
-  <a href="https://github.com/ratovarius/cli/actions/workflows/fork-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ratovarius/cli/fork-ci.yml?branch=main&label=Fork%20CI" alt="Fork CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ratovarius/googleworkspace-cli" alt="license"></a>
+  <a href="https://github.com/ratovarius/googleworkspace-cli/actions/workflows/fork-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ratovarius/googleworkspace-cli/fork-ci.yml?branch=main&label=Fork%20CI" alt="Fork CI status"></a>
 </p>
 <br>
 
 **[Install this fork from source](#installation)** ·
-[Report an issue](https://github.com/ratovarius/cli/issues)
+[Report an issue](https://github.com/ratovarius/googleworkspace-cli/issues)
 
 `gws` doesn't ship a static list of commands. It reads Google's own [Discovery Service](https://developers.google.com/discovery) at runtime and builds its entire command surface dynamically. When Google Workspace adds an API endpoint or method, `gws` picks it up automatically.
 
@@ -59,14 +59,14 @@ Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JS
 Install the maintained fork's `main` from source:
 
 ```bash
-cargo install --git https://github.com/ratovarius/cli --branch main --locked google-workspace-cli
+cargo install --git https://github.com/ratovarius/googleworkspace-cli --branch main --locked google-workspace-cli
 ```
 
 To use the Docs review companions as well, keep a source checkout:
 
 ```bash
-git clone https://github.com/ratovarius/cli.git
-cd cli
+git clone https://github.com/ratovarius/googleworkspace-cli.git
+cd googleworkspace-cli
 cargo build --workspace --locked
 export PATH="$PWD/target/debug:$PATH"
 ```
@@ -307,11 +307,11 @@ The repo ships 100+ Agent Skills (`SKILL.md` files) — one for every supported 
 
 ```bash
 # Install all skills at once
-npx skills add https://github.com/ratovarius/cli
+npx skills add https://github.com/ratovarius/googleworkspace-cli
 
 # Or pick only what you need
-npx skills add https://github.com/ratovarius/cli/tree/main/skills/gws-drive
-npx skills add https://github.com/ratovarius/cli/tree/main/skills/gws-gmail
+npx skills add https://github.com/ratovarius/googleworkspace-cli/tree/main/skills/gws-drive
+npx skills add https://github.com/ratovarius/googleworkspace-cli/tree/main/skills/gws-gmail
 ```
 
 <details>
@@ -339,7 +339,7 @@ Install this fork using the source instructions above before using agent skills.
 
 2. Install the extension into the Gemini CLI:
    ```bash
-   gemini extensions install https://github.com/ratovarius/cli
+   gemini extensions install https://github.com/ratovarius/googleworkspace-cli
    ```
 
 Installing this extension gives your Gemini CLI agent direct access to all `gws` commands and Google Workspace agent skills. Because `gws` handles its own authentication securely, you simply need to authenticate your terminal once prior to using the agent, and the extension will automatically inherit your credentials.

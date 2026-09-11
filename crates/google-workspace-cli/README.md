@@ -6,16 +6,16 @@
 
 ## Install this fork
 
-This is the independently maintained [ratovarius fork](https://github.com/ratovarius/cli)
+This is the independently maintained [ratovarius fork](https://github.com/ratovarius/googleworkspace-cli)
 of [googleworkspace/cli](https://github.com/googleworkspace/cli).
 Original authorship and the Apache-2.0 license are retained.
 
 ```bash
-cargo install --git https://github.com/ratovarius/cli --branch main --locked google-workspace-cli
+cargo install --git https://github.com/ratovarius/googleworkspace-cli --branch main --locked google-workspace-cli
 ```
 
 Upstream registry packages and binary releases do not include fork-only changes.
-See the [fork ledger](https://github.com/ratovarius/cli/blob/main/FORK.md)
+See the [fork ledger](https://github.com/ratovarius/googleworkspace-cli/blob/main/FORK.md)
 for improvements and upstream PRs.
 
 ## Quick Start
@@ -28,8 +28,8 @@ gws gmail users.messages list --params '{"maxResults": 3}'
 
 ## Documentation
 
-See the [full README](https://github.com/ratovarius/cli#readme) for authentication setup, helper commands, agent skills, and more.
+See the [full README](https://github.com/ratovarius/googleworkspace-cli#readme) for authentication setup, helper commands, agent skills, and more.
 
 ## License
 
-Apache-2.0 — see [LICENSE](https://github.com/ratovarius/cli/blob/main/LICENSE).
+Apache-2.0 — see [LICENSE](https://github.com/ratovarius/googleworkspace-cli/blob/main/LICENSE).

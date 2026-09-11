@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This is the independently maintained `ratovarius/cli` fork. Read
+This is the independently maintained `ratovarius/googleworkspace-cli` fork. Read
 [FORK.md](FORK.md) for upstream attribution and the feature ledger, and
 [CONTRIBUTING.md](CONTRIBUTING.md) for fork PRs, upstream submissions, and CI.
 

@@ -1,14 +1,14 @@
 # Contributing
 
 This repository is the independently maintained
-[ratovarius/cli fork](FORK.md) of
+[ratovarius/googleworkspace-cli fork](FORK.md) of
 [googleworkspace/cli](https://github.com/googleworkspace/cli).
 The fork welcomes bug reports and focused improvements. Read [AGENTS.md](AGENTS.md)
 for architecture, validation, testing, and changeset conventions.
 
 ## Develop a change in this fork
 
-1. Search [fork issues](https://github.com/ratovarius/cli/issues) and
+1. Search [fork issues](https://github.com/ratovarius/googleworkspace-cli/issues) and
    [upstream issues](https://github.com/googleworkspace/cli/issues) first.
    Create a fork issue describing the problem, expected behavior, and relevant
    upstream links.
@@ -16,7 +16,7 @@ for architecture, validation, testing, and changeset conventions.
 3. Add a regression test, implement the change, and add a `.changeset/*.md`
    entry. Existing package names in changesets are retained for upstream
    portability.
-4. Run the relevant checks below and open a PR against `ratovarius/cli:main`.
+4. Run the relevant checks below and open a PR against `ratovarius/googleworkspace-cli:main`.
    Link the fork issue with `Fixes #NUMBER`, describe the behavior and test
    evidence, and disclose any untested platform or live-API assumptions.
 5. Review the diff and CI results before merging. Keep branches backing open
@@ -25,17 +25,17 @@ for architecture, validation, testing, and changeset conventions.
 For a checkout with push access to this fork:
 
 ```bash
-git clone https://github.com/ratovarius/cli.git
-cd cli
+git clone https://github.com/ratovarius/googleworkspace-cli.git
+cd googleworkspace-cli
 git remote add upstream https://github.com/googleworkspace/cli.git
 git fetch origin
 git switch -c feat/my-change origin/main
 # Make and test a focused change, then commit it.
 git push -u origin feat/my-change
-gh pr create --repo ratovarius/cli --base main --head feat/my-change
+gh pr create --repo ratovarius/googleworkspace-cli --base main --head feat/my-change
 ```
 
-Other contributors can fork `ratovarius/cli` into their own account and open
+Other contributors can fork `ratovarius/googleworkspace-cli` into their own account and open
 a cross-fork PR. Use Conventional Commits, subjects under 72 characters, and
 no `Co-Authored-By` trailers.
 
@@ -118,7 +118,7 @@ git switch -c chore/sync-upstream origin/main
 git merge upstream/main
 # Resolve conflicts, inspect the changes, and run the checks above.
 git push -u origin chore/sync-upstream
-gh pr create --repo ratovarius/cli --base main --head chore/sync-upstream
+gh pr create --repo ratovarius/googleworkspace-cli --base main --head chore/sync-upstream
 ```
 
 Choose a new branch name if a sync PR is already open. If the pristine branch
