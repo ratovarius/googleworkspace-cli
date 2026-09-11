@@ -1,5 +1,9 @@
 # AGENTS.md
 
+This is the independently maintained `ratovarius/cli` fork. Read
+[FORK.md](FORK.md) for upstream attribution and the feature ledger, and
+[CONTRIBUTING.md](CONTRIBUTING.md) for fork PRs, upstream submissions, and CI.
+
 ## Project Overview
 
 `gws` is a Rust CLI tool for interacting with Google Workspace APIs. It dynamically generates its command surface at runtime by parsing Google Discovery Service JSON documents.
@@ -13,7 +17,7 @@
 ## Build & Test
 
 > [!IMPORTANT]
-> **Test Coverage**: The `codecov/patch` check requires that new or modified lines are covered by tests. When adding code, extract testable helper functions rather than embedding logic in `main`/`run` where it's hard to unit-test. Run `cargo test` locally and verify new branches are exercised.
+> **Test Coverage**: Cover new or modified behavior with tests. When adding code, extract testable helper functions rather than embedding logic in `main`/`run` where it's hard to unit-test. Run `cargo test` locally and verify new branches are exercised. Upstream submissions may additionally require `codecov/patch`; this fork's active checks are documented in `CONTRIBUTING.md`.
 
 ```bash
 cargo build          # Build in dev mode
@@ -33,7 +37,7 @@ Every PR must include a changeset file. Create one at `.changeset/<descriptive-n
 Brief description of the change
 ```
 
-Use `patch` for fixes/chores, `minor` for new features, `major` for breaking changes. The CI policy check will fail without a changeset.
+Use `patch` for fixes/chores, `minor` for new features, `major` for breaking changes. Keep changesets for upstream portability; the upstream CI policy requires them.
 
 ## Architecture
 

@@ -4,17 +4,19 @@
 
 `gws` dynamically generates its command surface at runtime by reading Google's [Discovery Service](https://developers.google.com/discovery). Drive, Gmail, Calendar, and every Workspace API — zero boilerplate, structured JSON output, 40+ agent skills included.
 
-## Install
+## Install this fork
 
-Download the pre-built binary for your OS and architecture from the **[GitHub Releases](https://github.com/googleworkspace/cli/releases)** page.
-
-Alternatively, you can use package managers as a convenience layer:
+This is the independently maintained [ratovarius fork](https://github.com/ratovarius/cli)
+of [googleworkspace/cli](https://github.com/googleworkspace/cli).
+Original authorship and the Apache-2.0 license are retained.
 
 ```bash
-npm install -g @googleworkspace/cli    # npm (downloads GitHub release binary)
-cargo install google-workspace-cli     # crates.io
-nix run github:googleworkspace/cli     # nix
+cargo install --git https://github.com/ratovarius/cli --branch main --locked google-workspace-cli
 ```
+
+Upstream registry packages and binary releases do not include fork-only changes.
+See the [fork ledger](https://github.com/ratovarius/cli/blob/main/FORK.md)
+for improvements and upstream PRs.
 
 ## Quick Start
 
@@ -26,8 +28,8 @@ gws gmail users.messages list --params '{"maxResults": 3}'
 
 ## Documentation
 
-See the [full README](https://github.com/googleworkspace/cli#readme) for authentication setup, helper commands, agent skills, and more.
+See the [full README](https://github.com/ratovarius/cli#readme) for authentication setup, helper commands, agent skills, and more.
 
 ## License
 
-Apache-2.0 — see [LICENSE](https://github.com/googleworkspace/cli/blob/main/LICENSE).
+Apache-2.0 — see [LICENSE](https://github.com/ratovarius/cli/blob/main/LICENSE).
