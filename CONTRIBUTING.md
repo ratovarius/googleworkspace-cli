@@ -51,7 +51,7 @@ From the repository root, with stable Rust and Python 3.11+ available:
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --locked -- -D warnings
-cargo test --workspace --locked
+cargo test --workspace --locked -- --test-threads=1
 cargo build --workspace --locked
 python3 -B -m unittest discover -s .github/tests -p 'test_*.py' -v
 if [ -d examples/docs-review ]; then
@@ -65,7 +65,8 @@ fi
 
 If `CARGO_TARGET_DIR` is set, point `GWS_TEST_BINARY` at that directory's
 `debug/gws` instead. This enables the real-CLI export regression rather than
-skipping it. Tests use synthetic data and local stub servers. They do not need
+skipping it. Run Rust tests serially: legacy credential tests share global key
+initialization and environment state. Tests use synthetic data and local stub servers. They do not need
 a Google account; dependency/toolchain downloads may need network access.
 Live API behavior, preview enrollment, and actual OS keyring interactions
 need separate, explicit validation.
