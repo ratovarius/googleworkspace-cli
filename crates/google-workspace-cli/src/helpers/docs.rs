@@ -21,13 +21,7 @@ use serde_json::json;
 use std::future::Future;
 use std::pin::Pin;
 
-mod read;
-
 pub struct DocsHelper;
-
-#[cfg(test)]
-#[path = "docs/read_tests.rs"]
-mod read_tests;
 
 impl Helper for DocsHelper {
     fn inject_commands(
@@ -35,7 +29,6 @@ impl Helper for DocsHelper {
         mut cmd: Command,
         _doc: &crate::discovery::RestDescription,
     ) -> Command {
-        cmd = cmd.subcommand(read::command());
         cmd = cmd.subcommand(
             Command::new("+write")
                 .about("[Helper] Append text to a document")
@@ -70,26 +63,17 @@ TIPS:
         &'a self,
         doc: &'a crate::discovery::RestDescription,
         matches: &'a ArgMatches,
-        sanitize_config: &'a crate::helpers::modelarmor::SanitizeConfig,
+        _sanitize_config: &'a crate::helpers::modelarmor::SanitizeConfig,
     ) -> Pin<Box<dyn Future<Output = Result<bool, GwsError>> + Send + 'a>> {
         Box::pin(async move {
-            if let Some(matches) = matches.subcommand_matches("+read") {
-                read::handle(doc, matches, sanitize_config).await?;
-                return Ok(true);
-            }
             if let Some(matches) = matches.subcommand_matches("+write") {
                 let (params_str, body_str, scopes) = build_write_request(matches, doc)?;
 
                 let scope_strs: Vec<&str> = scopes.iter().map(|s| s.as_str()).collect();
-                let dry_run = matches.get_flag("dry-run");
-                // Skip auth entirely: even failed auth can mutate stored credentials.
-                let (token, auth_method) = if dry_run {
-                    (None, executor::AuthMethod::None)
-                } else {
-                    match auth::get_token(&scope_strs).await {
-                        Ok(t) => (Some(t), executor::AuthMethod::OAuth),
-                        Err(e) => return Err(GwsError::Auth(format!("Docs auth failed: {e}"))),
-                    }
+                let (token, auth_method) = match auth::get_token(&scope_strs).await {
+                    Ok(t) => (Some(t), executor::AuthMethod::OAuth),
+                    Err(_) if matches.get_flag("dry-run") => (None, executor::AuthMethod::None),
+                    Err(e) => return Err(GwsError::Auth(format!("Docs auth failed: {e}"))),
                 };
 
                 // Method: documents.batchUpdate
@@ -116,7 +100,7 @@ TIPS:
                     auth_method,
                     None,
                     None,
-                    dry_run,
+                    matches.get_flag("dry-run"),
                     &pagination,
                     None,
                     &crate::helpers::modelarmor::SanitizeMode::Warn,

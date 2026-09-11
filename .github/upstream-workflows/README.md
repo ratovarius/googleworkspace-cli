@@ -7,8 +7,11 @@ copies do not run in this fork.
 
 The upstream workflows include Google-specific CLA, bot, package publishing,
 live-account smoke tests, and policy integrations. The fork instead runs
-`fork-ci.yml`, `docs-review.yml`, and `docs-review-bundle.yml` with read-only
-permissions and synthetic test data. They need no Google account credentials.
+the reusable `fork-ci.yml` with read-only permissions and synthetic test data.
+It tests available Docs companions on both platforms. The fork's `release.yml`
+calls those checks and publishes source releases after a versioned
+`develop` → `main` merge; `release-source.yml` enforces the PR source.
+They need no Google account credentials.
 
 This initial fork CI covers Rust tests/builds and the two Python companions on
 Linux and macOS, plus Rust formatting and Clippy. It does not reproduce the

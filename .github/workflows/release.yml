@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    uses: ./.github/workflows/fork-ci.yml
+
+  check:
+    name: Release version and provenance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      bootstrap: ${{ steps.version.outputs.bootstrap }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check PR source
+        if: github.event_name == 'pull_request'
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 .github/release_policy.py source \
+            --event "$GITHUB_EVENT_PATH" --repository "$REPOSITORY"
+      - name: Verify main came from the exact merged release PR
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          gh api "repos/$REPOSITORY/commits/$COMMIT/pulls" > "$RUNNER_TEMP/release-prs.json"
+          python3 .github/release_policy.py merge \
+            --pull-requests "$RUNNER_TEMP/release-prs.json" \
+            --sha "$COMMIT" --repository "$REPOSITORY"
+      - name: Validate release version
+        id: version
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            python3 .github/release_policy.py version --base "$BASE" \
+              --release-sha "$COMMIT" >> "$GITHUB_OUTPUT"
+          else
+            python3 .github/release_policy.py version --base "$BASE" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Record one-time migration
+        if: steps.version.outputs.bootstrap == 'true'
+        run: echo "Branch migration only; unreleased features stay on develop. No release is published." >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Publish GitHub release
+    needs: [quality, check]
+    if: github.event_name == 'push' && needs.check.outputs.bootstrap != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: github-release-${{ needs.check.outputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Publish release at the tested merge commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Retry safely: an existing tag may only refer to this tested commit.
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$COMMIT"
+          fi
+          if gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          PREVIOUS=$(git tag --merged "$COMMIT^1" --list 'fork-v*' --sort=-version:refname | head -n 1)
+          if [ -z "$PREVIOUS" ]; then PREVIOUS=v0.22.5; fi
+          gh release create "$TAG" --repo "$REPOSITORY" --target "$COMMIT" \
+            --title "$TAG" --generate-notes --notes-start-tag "$PREVIOUS"
+          echo "Published $TAG from $COMMIT." >> "$GITHUB_STEP_SUMMARY"

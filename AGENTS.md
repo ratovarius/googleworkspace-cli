@@ -4,6 +4,19 @@ This is the independently maintained `ratovarius/googleworkspace-cli` fork. Read
 [FORK.md](FORK.md) for upstream attribution and the feature ledger, and
 [CONTRIBUTING.md](CONTRIBUTING.md) for fork PRs, upstream submissions, and CI.
 
+## Branch and Release Policy
+
+- Start feature/fix branches from `develop` and target their PRs at `develop`.
+- `main` is the release branch. Its only allowed PR source is this repository's
+  `develop` branch. Never push directly to `main`, including documentation changes.
+- Prepare and commit a new synchronized version on `develop` before a release PR.
+  Follow [docs/releasing.md](docs/releasing.md); every normal merge to `main`
+  creates a `fork-v<version>` GitHub release after CI passes.
+- Merge release PRs with a merge commit. Never squash them, force-push `main`,
+  or delete the long-lived `develop` branch.
+- Do not open or merge a feature release merely to configure CI or branch rules.
+  Unreleased features stay on `develop` until the owner requests their release.
+
 ## Project Overview
 
 `gws` is a Rust CLI tool for interacting with Google Workspace APIs. It dynamically generates its command surface at runtime by parsing Google Discovery Service JSON documents.
@@ -116,7 +129,6 @@ When adding new helpers or CLI flags that accept file paths, **always validate**
 | -------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------- |
 | File path for writing (`--output-dir`) | `validate::validate_safe_output_dir()`   | Absolute paths, `../` traversal, symlinks outside CWD, control chars |
 | File path for reading (`--dir`)        | `validate::validate_safe_dir_path()`     | Absolute paths, `../` traversal, symlinks outside CWD, control chars |
-| File path (`--output`, `--upload`)     | `validate::validate_safe_file_path()`    | Paths outside CWD or the trusted `GOOGLE_WORKSPACE_CLI_FILE_ROOT`, control chars, symlink escapes; `..` components with an explicit root |
 | Enum/allowlist values (`--msg-format`) | clap `value_parser` (see `gmail/mod.rs`) | Any value not in the allowlist                                       |
 
 ```rust
@@ -213,7 +225,6 @@ See [`src/helpers/README.md`](crates/google-workspace-cli/src/helpers/README.md)
 | Variable | Description |
 |---|---|
 | `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` | Override the config directory (default: `~/.config/gws`) |
-| `GOOGLE_WORKSPACE_CLI_FILE_ROOT` | Trusted boundary for `--output` / `--upload` files (default: CWD). Must be an existing directory; canonicalized. Relative CLI paths remain CWD-relative. Does not expand directory validators. |
 
 ### OAuth Client
 

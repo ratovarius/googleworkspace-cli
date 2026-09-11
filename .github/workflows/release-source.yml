@@ -1,0 +1,26 @@
+name: Release source
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Require develop release source
+    runs-on: ubuntu-latest
+    steps:
+      # Run only the trusted base's policy; never check out or execute PR code.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Validate release source
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 .github/release_policy.py source \
+            --event "$GITHUB_EVENT_PATH" --repository "$REPOSITORY"

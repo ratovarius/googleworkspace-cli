@@ -12,11 +12,11 @@ for architecture, validation, testing, and changeset conventions.
    [upstream issues](https://github.com/googleworkspace/cli/issues) first.
    Create a fork issue describing the problem, expected behavior, and relevant
    upstream links.
-2. Branch from this fork's current `main`. Keep one concern per branch.
+2. Branch from this fork's current `develop`. Keep one concern per branch.
 3. Add a regression test, implement the change, and add a `.changeset/*.md`
    entry. Existing package names in changesets are retained for upstream
    portability.
-4. Run the relevant checks below and open a PR against `ratovarius/googleworkspace-cli:main`.
+4. Run the relevant checks below and open a PR against `ratovarius/googleworkspace-cli:develop`.
    Link the fork issue with `Fixes #NUMBER`, describe the behavior and test
    evidence, and disclose any untested platform or live-API assumptions.
 5. Review the diff and CI results before merging. Keep branches backing open
@@ -29,38 +29,51 @@ git clone https://github.com/ratovarius/googleworkspace-cli.git
 cd googleworkspace-cli
 git remote add upstream https://github.com/googleworkspace/cli.git
 git fetch origin
-git switch -c feat/my-change origin/main
+git switch -c feat/my-change origin/develop
 # Make and test a focused change, then commit it.
 git push -u origin feat/my-change
-gh pr create --repo ratovarius/googleworkspace-cli --base main --head feat/my-change
+gh pr create --repo ratovarius/googleworkspace-cli --base develop --head feat/my-change
 ```
 
 Other contributors can fork `ratovarius/googleworkspace-cli` into their own account and open
 a cross-fork PR. Use Conventional Commits, subjects under 72 characters, and
 no `Co-Authored-By` trailers.
 
+Only this repository's `develop` may open a release PR into `main`. Prepare a
+new synchronized version first and merge with a merge commit after CI passes.
+The merge creates a GitHub release automatically. Do not push directly to
+`main`, squash a release PR, or delete `develop`. See [releasing](docs/releasing.md).
+
 ## Checks
 
-From the repository root, with stable Rust and Python 3.10+ available:
+From the repository root, with stable Rust and Python 3.11+ available:
 
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --locked -- -D warnings
-cargo test --workspace --locked
+cargo test --workspace --locked -- --test-threads=1
 cargo build --workspace --locked
-python3 -B -m unittest discover -s examples/docs-review -p 'test_*.py' -v
-GWS_TEST_BINARY="$PWD/target/debug/gws" \
-  python3 -B -m unittest discover -s examples/docs-review-bundle -p 'test_*.py' -v
+python3 -B -m unittest discover -s .github/tests -p 'test_*.py' -v
+if [ -d examples/docs-review ]; then
+  python3 -B -m unittest discover -s examples/docs-review -p 'test_*.py' -v
+fi
+if [ -d examples/docs-review-bundle ]; then
+  GWS_TEST_BINARY="$PWD/target/debug/gws" \
+    python3 -B -m unittest discover -s examples/docs-review-bundle -p 'test_*.py' -v
+fi
 ```
 
 If `CARGO_TARGET_DIR` is set, point `GWS_TEST_BINARY` at that directory's
 `debug/gws` instead. This enables the real-CLI export regression rather than
-skipping it. Tests use synthetic data and local stub servers. They do not need
+skipping it. Run Rust tests serially: legacy credential tests share global key
+initialization and environment state. Tests use synthetic data and local stub servers. They do not need
 a Google account; dependency/toolchain downloads may need network access.
 Live API behavior, preview enrollment, and actual OS keyring interactions
 need separate, explicit validation.
 
-The active workflows run Rust and companion checks on Linux and macOS.
+The reusable Fork CI workflow runs Rust and available companion checks on Linux
+and macOS, plus release-policy tests. It runs for `develop` changes and is called
+by the Release workflow for `main` PRs and pushes.
 The [archived upstream automation](.github/upstream-workflows/README.md)
 documents which upstream checks and release jobs are not enabled here.
 
@@ -114,17 +127,17 @@ reviewed sync PR:
 git fetch origin
 git fetch upstream
 git push origin upstream/main:refs/heads/upstream-main
-git switch -c chore/sync-upstream origin/main
+git switch -c chore/sync-upstream origin/develop
 git merge upstream/main
 # Resolve conflicts, inspect the changes, and run the checks above.
 git push -u origin chore/sync-upstream
-gh pr create --repo ratovarius/googleworkspace-cli --base main --head chore/sync-upstream
+gh pr create --repo ratovarius/googleworkspace-cli --base develop --head chore/sync-upstream
 ```
 
 Choose a new branch name if a sync PR is already open. If the pristine branch
 push is rejected, investigate the changed upstream history before proceeding.
-Do not force-sync or reset the maintained `main` to upstream: it contains
-the fork's improvements.
+Do not force-sync or reset either maintained branch to upstream. Integrate into
+`develop`, then follow the release flow when those changes are ready for `main`.
 
 During the merge, check `.github/workflows/` for newly introduced upstream
 automation. Retain the fork's own publisher destinations, ownership, and
