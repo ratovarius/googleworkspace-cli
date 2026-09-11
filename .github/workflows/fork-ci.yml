@@ -40,7 +40,9 @@ jobs:
         with:
           key: fork-test-${{ matrix.os }}
       - name: Test workspace with synthetic fixtures
-        run: cargo test --workspace --locked
+        # Legacy credential tests share process-global key initialization and
+        # environment state; parallel execution can read a partially written key.
+        run: cargo test --workspace --locked -- --test-threads=1
       - name: Build workspace
         run: cargo build --workspace --locked
       - name: Test Docs review companion when included
