@@ -1,20 +1,30 @@
-<h1 align="center">gws</h1>
+<h1 align="center">gws — ratovarius fork</h1>
+
+**An independently maintained public fork of
+[googleworkspace/cli](https://github.com/googleworkspace/cli).**
+Built on the original project's work, with additional Google Docs reading,
+review, export, and credential-handling improvements. Original authorship,
+history, and the Apache-2.0 license are preserved.
+
+See [what this fork adds and its upstream PRs](FORK.md), or
+[contribute here](CONTRIBUTING.md). This fork can develop independently while
+focused improvements are offered back to the original project.
 
 **One CLI for all of Google Workspace — built for humans and AI agents.**<br>
 Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JSON output. 40+ agent skills included.
 
 > [!NOTE]
-> This is **not** an officially supported Google product.
+> This fork is maintained by [ratovarius](https://github.com/ratovarius).
+> It is **not** an officially supported Google product.
 
 <p>
-  <a href="https://www.npmjs.com/package/@googleworkspace/cli"><img src="https://img.shields.io/npm/v/@googleworkspace/cli" alt="npm version"></a>
-  <a href="https://github.com/googleworkspace/cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/googleworkspace/cli" alt="license"></a>
-  <a href="https://github.com/googleworkspace/cli/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/googleworkspace/cli/ci.yml?branch=main&label=CI" alt="CI status"></a>
-  <a href="https://www.npmjs.com/package/@googleworkspace/cli"><img src="https://img.shields.io/npm/unpacked-size/@googleworkspace/cli" alt="install size"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ratovarius/cli" alt="license"></a>
+  <a href="https://github.com/ratovarius/cli/actions/workflows/fork-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ratovarius/cli/fork-ci.yml?branch=main&label=Fork%20CI" alt="Fork CI status"></a>
 </p>
 <br>
 
-⬇️ **[Download the latest release for your OS](https://github.com/googleworkspace/cli/releases)**
+**[Install this fork from source](#installation)** ·
+[Report an issue](https://github.com/ratovarius/cli/issues)
 
 `gws` doesn't ship a static list of commands. It reads Google's own [Discovery Service](https://developers.google.com/discovery) at runtime and builds its entire command surface dynamically. When Google Workspace adds an API endpoint or method, `gws` picks it up automatically.
 
@@ -38,37 +48,38 @@ Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JS
 
 ## Prerequisites
 
-- **Node.js 18+** — for `npm install` (or download a pre-built binary from [GitHub Releases](https://github.com/googleworkspace/cli/releases))
+- **Stable Rust and Cargo** — to build this fork from source
+- **Python 3.10+** — for the optional Docs review and export companions (POSIX systems)
 - **A Google Cloud project** — required for OAuth credentials. You can create one via the [Google Cloud Console](https://console.cloud.google.com/) or with the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) or with the `gws auth setup` command.
 - **A Google account** with access to Google Workspace
 
 ## Installation
 
-The recommended way to install `gws` is to download the pre-built binary for your OS and architecture from the **[GitHub Releases](https://github.com/googleworkspace/cli/releases)** page. Extract the archive and place the `gws` binary in your `$PATH`.
-
-For convenience, you can also use `npm` to automate downloading the appropriate binary from GitHub Releases:
+Install the maintained fork's `main` from source:
 
 ```bash
-npm install -g @googleworkspace/cli
+cargo install --git https://github.com/ratovarius/cli --branch main --locked google-workspace-cli
 ```
 
-Or build from source:
+To use the Docs review companions as well, keep a source checkout:
 
 ```bash
-cargo install --git https://github.com/googleworkspace/cli --locked
+git clone https://github.com/ratovarius/cli.git
+cd cli
+cargo build --workspace --locked
+export PATH="$PWD/target/debug:$PATH"
 ```
 
-A Nix flake is also available at `github:googleworkspace/cli`
+See [Docs review](examples/docs-review/README.md) and
+[visual review bundles](examples/docs-review-bundle/README.md) for their commands.
+Check `command -v gws` to confirm which installed binary your shell will use.
 
-```bash
-nix run github:googleworkspace/cli
-```
-
-On macOS and Linux, you can also install via [Homebrew](https://brew.sh/):
-
-```bash
-brew install googleworkspace-cli
-```
+This initial fork publication provides source on GitHub. The upstream
+`@googleworkspace/cli` npm package, `google-workspace-cli` crates.io package,
+Homebrew package, and [upstream releases](https://github.com/googleworkspace/cli/releases)
+install the original distribution and do not include fork-only improvements.
+For a reproducible source build, replace `--branch main` with `--rev COMMIT_SHA`
+using the fork commit you have reviewed.
 
 ## Quick Start
 
@@ -103,6 +114,60 @@ gws schema drive.files.list
 # Stream paginated results as NDJSON
 gws drive files list --params '{"pageSize": 100}' --page-all | jq -r '.files[].name'
 ```
+
+Discovery-generated API commands and `gws docs +write` support credential-free
+`--dry-run`: they validate inputs and display the request without obtaining a
+token, accessing the keyring, reading or changing stored credentials, or sending
+the API request.
+
+```bash
+# Preview a Docs append without signing in
+gws docs +write --document DOC_ID --text 'Hello, world!' --dry-run
+```
+
+These previews work offline with a fresh cached Discovery schema (24-hour TTL).
+First use or an expired cache can still fetch the schema over the network.
+Other helpers may need authenticated reads to prepare their plans; this guarantee
+applies to raw API commands and `docs +write`.
+
+### Fields absent from Discovery
+
+Raw API methods with a request body accept `--allow-unknown-fields` alongside
+`--json`. Use it explicitly when an API supports fields that its public Discovery
+document does not yet describe. It allows unknown properties recursively,
+including nested objects and array elements, and forwards their values unchanged.
+JSON is still parsed and serialized normally; whitespace and key order may change.
+
+Validation remains strict by default. With the flag, known-field types, enums and
+required fields are still checked, as are JSON syntax, required URL parameters and
+file paths. It does not allow new enum values on a known field. The flag is local
+to raw methods and does not apply to handwritten `+` helpers.
+
+For example, Docs suggestions and comments require a Cloud project enrolled in the
+[Google Workspace Developer Preview Program](https://developers.google.com/workspace/preview).
+Google still enforces API availability, OAuth scopes, document permissions and
+server-side validation. This flag grants no additional access.
+
+```bash
+# Preview a suggested insertion (Docs Developer Preview).
+gws docs documents batchUpdate \
+  --params '{"documentId":"DOCUMENT_ID"}' \
+  --json '{"requests":[{"insertText":{"location":{"index":1},"text":"Suggested text"}}],"writeControl":{"writeMode":"SUGGEST"}}' \
+  --allow-unknown-fields --dry-run
+
+# Preview a comment anchored to existing text; adjust the range for your document.
+gws docs documents batchUpdate \
+  --params '{"documentId":"DOCUMENT_ID"}' \
+  --json '{"requests":[{"insertComment":{"content":"Please review this text.","range":{"startIndex":1,"endIndex":5}}}]}' \
+  --allow-unknown-fields --dry-run
+```
+
+`--dry-run` uses the same validation policy and shows the request without sending
+it. It cannot verify preview enrollment or server acceptance. Remove `--dry-run`
+to submit a request. See the Docs
+[request reference](https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/request#InsertCommentRequest)
+for preview field requirements.
+
 
 ## Authentication
 
@@ -215,17 +280,37 @@ export GOOGLE_WORKSPACE_CLI_TOKEN=$(gcloud auth print-access-token)
 
 Environment variables can also live in a `.env` file.
 
+### Troubleshooting saved credentials
+
+If `gws` cannot read or decrypt `credentials.enc` (including a keyring access
+failure), it returns an authentication error and preserves that file,
+`token_cache.json`, and `sa_token_cache.json`. It does not silently switch to
+plaintext credentials or Application Default Credentials (ADC). This applies to
+the default configuration directory and `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`.
+
+Check that you are using the original configuration directory and can access its
+original OS keyring or encryption key. Back up the configuration before changing
+key storage or replacing credentials. Preservation does not recover a lost key.
+If you intentionally want to discard saved credentials and sign in again, use
+`gws auth logout` followed by `gws auth login`; logout still removes saved
+credentials and token caches.
+
+An explicit `GOOGLE_WORKSPACE_CLI_TOKEN` or
+`GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` still takes precedence. A missing or invalid
+explicit credentials file is an error. When no encrypted credentials file exists,
+the usual plaintext and ADC fallback remains available.
+
 ## AI Agent Skills
 
 The repo ships 100+ Agent Skills (`SKILL.md` files) — one for every supported API, plus higher-level helpers for common workflows and 50 curated recipes for Gmail, Drive, Docs, Calendar, and Sheets. See the full [Skills Index](docs/skills.md) for the complete list.
 
 ```bash
 # Install all skills at once
-npx skills add https://github.com/googleworkspace/cli
+npx skills add https://github.com/ratovarius/cli
 
 # Or pick only what you need
-npx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-drive
-npx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-gmail
+npx skills add https://github.com/ratovarius/cli/tree/main/skills/gws-drive
+npx skills add https://github.com/ratovarius/cli/tree/main/skills/gws-gmail
 ```
 
 <details>
@@ -239,7 +324,7 @@ ln -s $(pwd)/skills/gws-* ~/.openclaw/skills/
 cp -r skills/gws-drive skills/gws-gmail ~/.openclaw/skills/
 ```
 
-The `gws-shared` skill includes an `install` block so OpenClaw auto-installs the CLI via `npm` if `gws` isn't on PATH.
+Install this fork using the source instructions above before using agent skills. An agent installer that uses the upstream npm package will install the original distribution.
 
 </details>
 
@@ -253,7 +338,7 @@ The `gws-shared` skill includes an `install` block so OpenClaw auto-installs the
 
 2. Install the extension into the Gemini CLI:
    ```bash
-   gemini extensions install https://github.com/googleworkspace/cli
+   gemini extensions install https://github.com/ratovarius/cli
    ```
 
 Installing this extension gives your Gemini CLI agent direct access to all `gws` commands and Google Workspace agent skills. Because `gws` handles its own authentication securely, you simply need to authenticate your terminal once prior to using the agent, and the extension will automatically inherit your credentials.
@@ -265,6 +350,39 @@ Installing this extension gives your Gemini CLI agent direct access to all `gws`
 ```bash
 gws drive files create --json '{"name": "report.pdf"}' --upload ./report.pdf
 ```
+
+### Output and upload file roots
+
+`--output` and `--upload` accept paths within the current working directory
+(CWD) by default, including absolute paths that resolve inside CWD. To allow
+files elsewhere, set a trusted operator environment variable to an existing
+directory:
+
+```bash
+mkdir -p /tmp/gws-files
+export GOOGLE_WORKSPACE_CLI_FILE_ROOT=/tmp/gws-files
+gws drive files get --params '{"fileId":"FILE_ID","alt":"media"}' \
+  --output /tmp/gws-files/report.pdf
+gws drive files create --json '{"name":"report.pdf"}' \
+  --upload /tmp/gws-files/report.pdf
+```
+
+The root replaces the allowed file boundary; relative CLI paths still resolve
+from CWD. For example, `--output report.pdf` is rejected if CWD is outside the
+configured root. The root is canonicalized and must exist as a directory; an
+empty or invalid value fails validation. Relative root settings resolve from
+CWD too. With an explicit root, CLI paths containing `..` components are
+rejected. Control characters and symlinks escaping the boundary are rejected;
+symlinks resolving inside it are allowed, but dangling symlinks are rejected.
+These CLI file flags require a UTF-8 canonical path. If a symlink resolves to a
+path with unsupported encoding, the command returns a validation error rather
+than dropping the upload or selecting the default output file.
+
+This setting affects only these file flags, not `--dir` or `--output-dir`.
+It does not create parent directories or change the default download filename
+when `--output` is omitted. Validation cannot prevent another local process
+from replacing a path component between validation and I/O; choose a root
+whose directories you control. Unset the variable to restore the CWD boundary.
 
 ### Pagination
 
@@ -382,6 +500,7 @@ All variables are optional. See [`.env.example`](.env.example) for a copy-paste 
 | `GOOGLE_WORKSPACE_CLI_CLIENT_ID` | OAuth client ID (alternative to `client_secret.json`) |
 | `GOOGLE_WORKSPACE_CLI_CLIENT_SECRET` | OAuth client secret (paired with `CLIENT_ID`) |
 | `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` | Override config directory (default: `~/.config/gws`) |
+| `GOOGLE_WORKSPACE_CLI_FILE_ROOT` | Existing directory allowed for `--output` / `--upload` paths (default: CWD); relative CLI paths remain CWD-relative |
 | `GOOGLE_WORKSPACE_CLI_SANITIZE_TEMPLATE` | Default Model Armor template |
 | `GOOGLE_WORKSPACE_CLI_SANITIZE_MODE` | `warn` (default) or `block` |
 | `GOOGLE_WORKSPACE_CLI_LOG` | Log level for stderr (e.g., `gws=debug`). Off by default. |

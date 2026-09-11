@@ -2,19 +2,19 @@
   "name": "@googleworkspace/cli",
   "version": "0.22.5",
   "private": true,
-  "description": "Google Workspace CLI — dynamic command surface from Discovery Service",
+  "description": "Google Workspace CLI \u2014 dynamic command surface from Discovery Service",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/googleworkspace/cli.git"
+    "url": "https://github.com/ratovarius/cli.git"
   },
   "author": {
     "name": "Justin Poehnelt",
     "email": "justin.poehnelt@gmail.com"
   },
-  "homepage": "https://github.com/googleworkspace/cli",
+  "homepage": "https://github.com/ratovarius/cli",
   "bugs": {
-    "url": "https://github.com/googleworkspace/cli/issues"
+    "url": "https://github.com/ratovarius/cli/issues"
   },
   "scripts": {
     "test": "cargo test",

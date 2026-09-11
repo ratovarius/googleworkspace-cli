@@ -225,7 +225,7 @@ async fn run() -> Result<(), GwsError> {
 
     // Validate file paths against traversal before any I/O.
     // Use the returned canonical paths so the validated path is the one
-    // actually used for I/O (closes TOCTOU gap).
+    // actually used for I/O. Local path-replacement races still apply.
     let upload_path_buf = if let Some(p) = upload_path {
         Some(crate::validate::validate_safe_file_path(p, "--upload")?)
     } else {
@@ -236,8 +236,8 @@ async fn run() -> Result<(), GwsError> {
     } else {
         None
     };
-    let upload_path = upload_path_buf.as_deref().and_then(|p| p.to_str());
-    let output_path = output_path_buf.as_deref().and_then(|p| p.to_str());
+    let upload_path = optional_file_path_as_str(upload_path_buf.as_deref(), "--upload")?;
+    let output_path = optional_file_path_as_str(output_path_buf.as_deref(), "--output")?;
 
     let upload = {
         let upload_content_type = matched_args
@@ -261,25 +261,30 @@ async fn run() -> Result<(), GwsError> {
     // to avoid restrictive scopes like gmail.metadata that block query parameters.
     let scopes: Vec<&str> = select_scope(&method.scopes).into_iter().collect();
 
-    // Authenticate: try OAuth, fail with error if credentials exist but are broken
-    let (token, auth_method) = match auth::get_token(&scopes).await {
-        Ok(t) => (Some(t), executor::AuthMethod::OAuth),
-        Err(e) => {
-            // If credentials were found but failed (e.g. decryption error, invalid token),
-            // propagate the error instead of silently falling back to unauthenticated.
-            // Only fall back to None if no credentials exist at all.
-            let err_msg = format!("{e:#}");
-            // NB: matches the bail!() message in auth::load_credentials_inner
-            if err_msg.starts_with("No credentials found") {
-                (None, executor::AuthMethod::None)
-            } else {
-                return Err(GwsError::Auth(format!("Authentication failed: {err_msg}")));
+    // Dry-runs only need the schema and inputs. Do not load credentials:
+    // authentication may access the keyring or remove corrupt credential files.
+    let (token, auth_method) = if dry_run {
+        (None, executor::AuthMethod::None)
+    } else {
+        match auth::get_token(&scopes).await {
+            Ok(t) => (Some(t), executor::AuthMethod::OAuth),
+            Err(e) => {
+                // If credentials were found but failed (e.g. decryption error, invalid token),
+                // propagate the error instead of silently falling back to unauthenticated.
+                // Only fall back to None if no credentials exist at all.
+                let err_msg = format!("{e:#}");
+                // NB: matches the bail!() message in auth::load_credentials_inner
+                if err_msg.starts_with("No credentials found") {
+                    (None, executor::AuthMethod::None)
+                } else {
+                    return Err(GwsError::Auth(format!("Authentication failed: {err_msg}")));
+                }
             }
         }
     };
 
     // Execute
-    executor::execute_method(
+    executor::execute_method_with_policy(
         &doc,
         method,
         params_json,
@@ -294,9 +299,40 @@ async fn run() -> Result<(), GwsError> {
         &sanitize_config.mode,
         &output_format,
         false,
+        parse_body_validation_policy(matched_args),
     )
     .await
     .map(|_| ())
+}
+
+fn parse_body_validation_policy(matches: &clap::ArgMatches) -> executor::BodyValidationPolicy {
+    if matches
+        .try_get_one::<bool>("allow-unknown-fields")
+        .ok()
+        .flatten()
+        .copied()
+        .unwrap_or(false)
+    {
+        executor::BodyValidationPolicy::AllowUnknownFields
+    } else {
+        executor::BodyValidationPolicy::Strict
+    }
+}
+
+// The executor takes strings. An explicit path must never become an omitted
+// argument just because canonicalization found a non-UTF-8 component.
+fn optional_file_path_as_str<'a>(
+    path: Option<&'a std::path::Path>,
+    flag_name: &str,
+) -> Result<Option<&'a str>, GwsError> {
+    path.map(|path| {
+        path.to_str().ok_or_else(|| {
+            GwsError::Validation(format!(
+                "{flag_name} resolves to a path that is not valid UTF-8; choose a path whose canonical components are valid UTF-8"
+            ))
+        })
+    })
+    .transpose()
 }
 
 /// Select the best scope from a method's scope list.
@@ -505,8 +541,9 @@ fn print_usage() {
     }
     println!();
     println!("COMMUNITY:");
-    println!("    Star the repo: https://github.com/googleworkspace/cli");
-    println!("    Report bugs / request features: https://github.com/googleworkspace/cli/issues");
+    println!("    Fork: https://github.com/ratovarius/cli");
+    println!("    Upstream: https://github.com/googleworkspace/cli");
+    println!("    Report bugs / request features: https://github.com/ratovarius/cli/issues");
     println!("    Please search existing issues first; if one already exists, comment there.");
     println!();
     println!("DISCLAIMER:");
@@ -524,6 +561,99 @@ fn is_version_flag(arg: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_body_validation_policy_from_raw_method_flags() {
+        let doc: discovery::RestDescription = serde_json::from_value(serde_json::json!({
+            "name": "test",
+            "version": "v1",
+            "rootUrl": "https://example.invalid/",
+            "servicePath": "",
+            "resources": {"files": {"methods": {
+                "create": {"path": "files", "httpMethod": "POST", "request": {"$ref": "File"}},
+                "list": {"path": "files", "httpMethod": "GET"}
+            }}}
+        }))
+        .unwrap();
+        for (args, expected) in [
+            (
+                vec!["gws", "files", "list"],
+                executor::BodyValidationPolicy::Strict,
+            ),
+            (
+                vec!["gws", "files", "create", "--json", "{}"],
+                executor::BodyValidationPolicy::Strict,
+            ),
+            (
+                vec![
+                    "gws",
+                    "files",
+                    "create",
+                    "--json",
+                    "{}",
+                    "--allow-unknown-fields",
+                ],
+                executor::BodyValidationPolicy::AllowUnknownFields,
+            ),
+        ] {
+            let matches = commands::build_cli(&doc)
+                .try_get_matches_from(args)
+                .unwrap();
+            let (_, method_args) = resolve_method_from_matches(&doc, &matches).unwrap();
+            assert_eq!(parse_body_validation_policy(method_args), expected);
+        }
+    }
+
+    #[test]
+    fn file_root_path_encoding_preserves_present_and_absent_paths() {
+        for flag in ["--output", "--upload"] {
+            assert_eq!(optional_file_path_as_str(None, flag).unwrap(), None);
+            assert_eq!(
+                optional_file_path_as_str(Some(std::path::Path::new("résumé.pdf")), flag).unwrap(),
+                Some("résumé.pdf")
+            );
+        }
+    }
+
+    #[cfg(any(unix, windows))]
+    fn non_utf8_canonical_path() -> std::path::PathBuf {
+        // Construct an OS path in memory: no filesystem support is required.
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStringExt;
+            std::ffi::OsString::from_vec(b"/files/bytes-\xff/report.pdf".to_vec()).into()
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStringExt;
+            let mut units: Vec<u16> = r"C:\files\bytes-".encode_utf16().collect();
+            units.push(0xD800); // unpaired surrogate
+            units.extend(r"\report.pdf".encode_utf16());
+            std::ffi::OsString::from_wide(&units).into()
+        }
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn file_root_path_encoding_rejects_explicit_output_instead_of_fallback() {
+        let path = non_utf8_canonical_path();
+        let error = optional_file_path_as_str(Some(&path), "--output").unwrap_err();
+        assert!(matches!(error, GwsError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("--output"), "{message}");
+        assert!(message.contains("UTF-8"), "{message}");
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn file_root_path_encoding_rejects_explicit_upload_instead_of_omitting_it() {
+        let path = non_utf8_canonical_path();
+        let error = optional_file_path_as_str(Some(&path), "--upload").unwrap_err();
+        assert!(matches!(error, GwsError::Validation(_)));
+        let message = error.to_string();
+        assert!(message.contains("--upload"), "{message}");
+        assert!(message.contains("UTF-8"), "{message}");
+    }
 
     #[test]
     fn test_parse_pagination_config_defaults() {

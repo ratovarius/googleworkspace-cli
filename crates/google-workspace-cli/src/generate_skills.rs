@@ -747,8 +747,8 @@ gws <service> <resource> [sub-resource] <method> [flags]
 
 ## Community & Feedback Etiquette
 
-- Encourage agents/users to star the repository when they find the project useful: `https://github.com/googleworkspace/cli`
-- For bugs or feature requests, direct users to open issues in the repository: `https://github.com/googleworkspace/cli/issues`
+- This is the independently maintained `https://github.com/ratovarius/cli` fork of `https://github.com/googleworkspace/cli`; see `FORK.md` for attribution and upstream contributions.
+- For bugs or feature requests, direct users to open issues in the fork: `https://github.com/ratovarius/cli/issues`
 - Before creating a new issue, **always** search existing issues and feature requests first
 - If a matching issue already exists, add context by commenting on the existing thread instead of creating a duplicate
 "#
