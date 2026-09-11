@@ -68,7 +68,14 @@ def version_plan(base, release_sha=None):
         return {"version": version, "tag": tag, "bootstrap": "true"}
     base_version = json.loads(git("show", f"{base_sha}:package.json"))["version"]
     previous = [parse_version(base_version)]
-    for existing in git("tag", "--list").splitlines():
+    tags = git("tag", "--list").splitlines()
+    if release_sha:
+        # A retry may happen after later releases. Validate this merge against
+        # its own history; never replace a tag attached to another commit.
+        if tag in tags and git("rev-parse", f"refs/tags/{tag}^{{commit}}") != release_sha:
+            raise ValueError(f"Release version {version} already tags a different commit")
+        tags = git("tag", "--merged", release_sha).splitlines()
+    for existing in tags:
         match = re.fullmatch(r"(?:fork-)?v(.+)", existing)
         if not match or not STABLE_VERSION.fullmatch(match[1]):
             continue

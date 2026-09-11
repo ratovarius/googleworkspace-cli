@@ -11,7 +11,8 @@ The source check also rejects a fork's branch named `develop`.
 ## Prepare a release
 
 1. Complete feature PRs into `develop` and verify CI there.
-2. On `develop`, choose the next stable version and consume the pending changesets.
+2. Create a release-preparation branch from `develop`, choose the next stable
+   version, and consume the pending changesets.
    Run `pnpm install --frozen-lockfile`, then `pnpm run version-sync`.
    Review the generated changelog and version changes before committing.
    The existing version script also regenerates skills and may refresh lockfiles;
@@ -20,14 +21,15 @@ The source check also rejects a fork's branch named `develop`.
    CLI's `google-workspace` dependency, and the two local packages in `Cargo.lock`
    agree. CI requires the version to exceed both `main` and existing stable
    release tags. This applies to every release PR, including maintenance.
-4. Commit and push `develop`, then open a PR with head `develop` and base `main`.
+4. Commit and push the preparation branch, open its PR into `develop`, and merge
+   after CI passes. Then open the release PR with head `develop` and base `main`.
    Explain the release changes and validation in its description.
 5. Wait for the source, version/provenance, policy, Rust, and companion checks.
    Merge using a **merge commit**. Do not squash or delete `develop`.
 6. The main workflow verifies the exact merged PR, reruns CI, and creates the
    tag and GitHub Release at that tested merge SHA, with generated release notes.
-   Fast-forward `develop` to the main merge afterwards if it has no newer work;
-   otherwise merge `main` into `develop`.
+   Afterwards, create a synchronization branch from `develop`, merge `main`
+   into it, and bring that branch back through a PR into `develop`.
 
 For example, package version `0.23.0` produces `fork-v0.23.0`. The `fork-` prefix
 distinguishes this fork's releases from inherited upstream `v*` tags.

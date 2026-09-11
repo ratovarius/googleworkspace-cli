@@ -142,6 +142,27 @@ class ReleasePolicyTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("different commit", result.stderr)
 
+    def test_older_release_can_retry_after_a_newer_release(self):
+        self.bump()
+        self.git("add", ".")
+        self.git(
+            "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+            "commit", "-qm", "first release",
+        )
+        sha = self.git("rev-parse", "HEAD").strip()
+        self.git("tag", "fork-v0.23.0")
+        (self.root / "later.txt").write_text("A later release")
+        self.git("add", ".")
+        self.git(
+            "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+            "commit", "-qm", "later release",
+        )
+        self.git("tag", "fork-v0.24.0")
+        result = self.run_policy(
+            "version", "--base", self.base, "--release-sha", sha,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_rejects_each_stale_version_location(self):
         self.bump()
         paths = (
