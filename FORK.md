@@ -19,17 +19,19 @@ This basic reliability fix benefits all Workspace commands. Its branch includes
 the small Clippy cleanup as a separate commit, so it requires no other PR.
 
 The other seven proposals were closed by author request to focus upstream review.
-Their code remains included in this fork's `main`; their closure does not indicate
+Their code is retained on this fork's `develop`; their closure does not indicate
 rejection by the original maintainers. Further development of those improvements
 continues through issues and PRs in this fork. Additional upstream submissions
 are outside the current pilot. This policy is tracked in
 [fork issue #11](https://github.com/ratovarius/googleworkspace-cli/issues/11).
 
-## Included improvements and upstream contributions
+## Unreleased improvements and upstream contributions
 
 The initial fork is based on upstream commit
 [`a3768d0`](https://github.com/googleworkspace/cli/commit/a3768d0e82ad83cca2da97724e46bea4ff0e6dbd).
-The improvements below are included on this fork's `main`. The upstream PR
+The features below are integrated on `develop` and are **not yet released on
+`main`**. Only the Clippy compatibility maintenance remains on both branches.
+The upstream PR
 links show their current acceptance status; inclusion here does not imply
 upstream acceptance.
 
@@ -46,8 +48,8 @@ upstream acceptance.
 
 The review and bundle tools are Python standard-library examples for POSIX
 systems, not built-in `gws` subcommands. Their setup and limits are documented
-in [docs-review](examples/docs-review/README.md) and
-[docs-review-bundle](examples/docs-review-bundle/README.md). Exports may span
+in `examples/docs-review/README.md` and
+`examples/docs-review-bundle/README.md` on `develop`. Exports may span
 different document revisions; the bundle reports those limits instead of
 claiming an atomic snapshot.
 
@@ -55,13 +57,19 @@ The initial publication is tracked in [fork issue #9](https://github.com/ratovar
 
 ## Branches and distribution
 
-- `main` is the maintained fork, including integrated improvements and fork
-  documentation and CI.
+- `develop` integrates feature and fix PRs for testing before release.
+- `main` is the release baseline, plus fork documentation and CI. Its only PR
+  source is this repository's `develop`; merging a versioned release PR creates
+  a `fork-v<version>` GitHub release after all checks pass.
 - `upstream-main` records the last imported upstream `main` unchanged. It is
   updated deliberately during upstream sync, not automatically.
 - Individual `feat/*` and `fix/*` branches preserve the original proposals.
   `fix/preserve-credentials` backs the active upstream pilot. Start further fork
-  development from this fork's current `main`, keeping the pilot branch focused.
+  development from this fork's current `develop`, keeping the pilot branch focused.
+
+The [release guide](docs/releasing.md) documents the enforced branch rules,
+version preparation, and the one-time migration that removed unreleased features
+from `main` without rewriting history.
 
 Install this fork from source using the [README](README.md#installation).
 The upstream npm, crates.io, Homebrew, and binary releases do not include

@@ -2,9 +2,10 @@ name: Fork CI
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
   pull_request:
-    branches: [main]
+    branches: [develop]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -41,6 +42,24 @@ jobs:
         run: cargo test --workspace --locked
       - name: Build workspace
         run: cargo build --workspace --locked
+      - name: Test Docs review companion when included
+        if: hashFiles('examples/docs-review/docs_review.py') != ''
+        run: python3 -B -m unittest discover -s examples/docs-review -p 'test_*.py' -v
+      - name: Test Docs bundle companion when included
+        if: hashFiles('examples/docs-review-bundle/docs_review_bundle.py') != ''
+        run: python3 -B -m unittest discover -s examples/docs-review-bundle -p 'test_*.py' -v
+        env:
+          GWS_TEST_BINARY: ${{ github.workspace }}/target/debug/gws
+
+  release-policy:
+    name: Release policy tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: python3 -B -m unittest discover -s .github/tests -p 'test_*.py' -v
 
   lint:
     name: Rust formatting and Clippy

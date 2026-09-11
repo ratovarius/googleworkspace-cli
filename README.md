@@ -2,14 +2,16 @@
 
 **An independently maintained public fork of
 [googleworkspace/cli](https://github.com/googleworkspace/cli).**
-Built on the original project's work, with additional Google Docs reading,
-review, export, and credential-handling improvements. Original authorship,
+Built on the original project's work, with Google Docs reading,
+review, export, and credential-handling improvements under development on
+`develop`. `main` is the release baseline. Original authorship,
 history, and the Apache-2.0 license are preserved.
 
 See [what this fork adds and its upstream PRs](FORK.md), or
 [contribute here](CONTRIBUTING.md). The initial upstream contribution is the
 [credential-preservation fix](https://github.com/googleworkspace/cli/pull/937).
 Other feature development continues in this fork.
+See the [develop → main release flow](docs/releasing.md).
 
 **One CLI for all of Google Workspace — built for humans and AI agents.**<br>
 Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JSON output. 40+ agent skills included.
@@ -20,7 +22,7 @@ Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JS
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/ratovarius/googleworkspace-cli" alt="license"></a>
-  <a href="https://github.com/ratovarius/googleworkspace-cli/actions/workflows/fork-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ratovarius/googleworkspace-cli/fork-ci.yml?branch=main&label=Fork%20CI" alt="Fork CI status"></a>
+  <a href="https://github.com/ratovarius/googleworkspace-cli/actions/workflows/fork-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ratovarius/googleworkspace-cli/fork-ci.yml?branch=develop&label=Develop%20CI" alt="Develop CI status"></a>
 </p>
 <br>
 
@@ -56,23 +58,24 @@ Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JS
 
 ## Installation
 
-Install the maintained fork's `main` from source:
+Install the fork's release baseline from `main`:
 
 ```bash
 cargo install --git https://github.com/ratovarius/googleworkspace-cli --branch main --locked google-workspace-cli
 ```
 
-To use the Docs review companions as well, keep a source checkout:
+To try the unreleased Docs improvements and review companions, explicitly use
+`--branch develop` instead, or keep a development checkout:
 
 ```bash
-git clone https://github.com/ratovarius/googleworkspace-cli.git
+git clone --branch develop https://github.com/ratovarius/googleworkspace-cli.git
 cd googleworkspace-cli
 cargo build --workspace --locked
 export PATH="$PWD/target/debug:$PATH"
 ```
 
-See [Docs review](examples/docs-review/README.md) and
-[visual review bundles](examples/docs-review-bundle/README.md) for their commands.
+On `develop`, see `examples/docs-review/README.md` and
+`examples/docs-review-bundle/README.md` for their commands.
 Check `command -v gws` to confirm which installed binary your shell will use.
 
 This initial fork publication provides source on GitHub. The upstream
