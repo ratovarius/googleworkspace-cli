@@ -7,8 +7,9 @@ review, export, and credential-handling improvements. Original authorship,
 history, and the Apache-2.0 license are preserved.
 
 See [what this fork adds and its upstream PRs](FORK.md), or
-[contribute here](CONTRIBUTING.md). This fork can develop independently while
-focused improvements are offered back to the original project.
+[contribute here](CONTRIBUTING.md). The initial upstream contribution is the
+[credential-preservation fix](https://github.com/googleworkspace/cli/pull/937).
+Other feature development continues in this fork.
 
 **One CLI for all of Google Workspace — built for humans and AI agents.**<br>
 Drive, Gmail, Calendar, and every Workspace API. Zero boilerplate. Structured JSON output. 40+ agent skills included.

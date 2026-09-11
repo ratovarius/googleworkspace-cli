@@ -64,7 +64,17 @@ The active workflows run Rust and companion checks on Linux and macOS.
 The [archived upstream automation](.github/upstream-workflows/README.md)
 documents which upstream checks and release jobs are not enabled here.
 
-## Offer an improvement upstream
+## Current upstream pilot and future submissions
+
+The current policy is to keep
+[googleworkspace/cli#937](https://github.com/googleworkspace/cli/pull/937)
+as the sole active upstream contribution. All other feature development continues
+in this fork. Proposals #930–#936 were closed by author request, with their code
+and history retained here. No additional upstream PRs are planned during this
+pilot.
+
+The remaining instructions in this section are a reference for a future
+maintainer decision to resume broader upstream contributions.
 
 Maintain two PRs when a change belongs in both projects: one for inclusion
 here and one for upstream acceptance. A fork-local merge does not merge the
