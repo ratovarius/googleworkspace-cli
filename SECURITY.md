@@ -1,7 +1,7 @@
 # Report a security issue
 
 For vulnerabilities in this independently maintained fork, use
-[GitHub's private vulnerability reporting](https://github.com/ratovarius/cli/security/advisories/new).
+[GitHub's private vulnerability reporting](https://github.com/ratovarius/googleworkspace-cli/security/advisories/new).
 Include the affected commit, reproduction steps, and impact. Do not include
 real OAuth tokens, document contents, or other credentials in a public issue.
 

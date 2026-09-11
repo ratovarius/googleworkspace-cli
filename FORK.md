@@ -1,6 +1,6 @@
 # About this fork
 
-This is **ratovarius/cli**, an independently maintained public fork of
+This is **ratovarius/googleworkspace-cli**, an independently maintained public fork of
 [googleworkspace/cli](https://github.com/googleworkspace/cli). The original
 project and its contributors built `gws`; this fork builds on their work.
 Original history, copyright notices, and the [Apache-2.0 license](LICENSE)
@@ -23,7 +23,7 @@ Their code remains included in this fork's `main`; their closure does not indica
 rejection by the original maintainers. Further development of those improvements
 continues through issues and PRs in this fork. Additional upstream submissions
 are outside the current pilot. This policy is tracked in
-[fork issue #11](https://github.com/ratovarius/cli/issues/11).
+[fork issue #11](https://github.com/ratovarius/googleworkspace-cli/issues/11).
 
 ## Included improvements and upstream contributions
 
@@ -35,14 +35,14 @@ upstream acceptance.
 
 | Improvement | Workflow benefit | Fork issue | Upstream proposal |
 | --- | --- | --- | --- |
-| Explicit `--allow-unknown-fields` | Send supported preview request fields missing from Discovery, while retaining known-field validation. Google preview enrollment still applies. | [#1](https://github.com/ratovarius/cli/issues/1) | [#931](https://github.com/googleworkspace/cli/pull/931) — closed |
-| `gws docs +read` | Read text, formatting, tables, images, and all tabs in a compact structured response. | [#2](https://github.com/ratovarius/cli/issues/2) | [#932](https://github.com/googleworkspace/cli/pull/932) — closed |
-| Reviewed text patch companion | Review one precise replacement, bind it to the document revision, and verify the result. | [#3](https://github.com/ratovarius/cli/issues/3) | [#933](https://github.com/googleworkspace/cli/pull/933) — closed |
-| Visual review bundle companion | Collect document structure, PDF, DOCX, Markdown, assets, and an HTML review view in one local folder. | [#4](https://github.com/ratovarius/cli/issues/4) | [#934](https://github.com/googleworkspace/cli/pull/934) — closed |
-| Explicit trusted file root | Export or upload within a chosen working directory with path checks. | [#5](https://github.com/ratovarius/cli/issues/5) | [#935](https://github.com/googleworkspace/cli/pull/935) — closed |
-| Credential-free request previews | Validate raw requests and Docs appends without opening credentials or sending the request. Offline use requires a fresh cached Discovery schema. | [#6](https://github.com/ratovarius/cli/issues/6) | [#936](https://github.com/googleworkspace/cli/pull/936) — closed |
-| Preserve credentials after decryption failure | Keep saved credentials intact and report the error instead of silently falling back to another account. | [#7](https://github.com/ratovarius/cli/issues/7) | [#937](https://github.com/googleworkspace/cli/pull/937) — active pilot |
-| Current Clippy compatibility | Keep the required Rust lint check passing. | [#8](https://github.com/ratovarius/cli/issues/8) | [#930](https://github.com/googleworkspace/cli/pull/930) — closed; fix included in #937 |
+| Explicit `--allow-unknown-fields` | Send supported preview request fields missing from Discovery, while retaining known-field validation. Google preview enrollment still applies. | [#1](https://github.com/ratovarius/googleworkspace-cli/issues/1) | [#931](https://github.com/googleworkspace/cli/pull/931) — closed |
+| `gws docs +read` | Read text, formatting, tables, images, and all tabs in a compact structured response. | [#2](https://github.com/ratovarius/googleworkspace-cli/issues/2) | [#932](https://github.com/googleworkspace/cli/pull/932) — closed |
+| Reviewed text patch companion | Review one precise replacement, bind it to the document revision, and verify the result. | [#3](https://github.com/ratovarius/googleworkspace-cli/issues/3) | [#933](https://github.com/googleworkspace/cli/pull/933) — closed |
+| Visual review bundle companion | Collect document structure, PDF, DOCX, Markdown, assets, and an HTML review view in one local folder. | [#4](https://github.com/ratovarius/googleworkspace-cli/issues/4) | [#934](https://github.com/googleworkspace/cli/pull/934) — closed |
+| Explicit trusted file root | Export or upload within a chosen working directory with path checks. | [#5](https://github.com/ratovarius/googleworkspace-cli/issues/5) | [#935](https://github.com/googleworkspace/cli/pull/935) — closed |
+| Credential-free request previews | Validate raw requests and Docs appends without opening credentials or sending the request. Offline use requires a fresh cached Discovery schema. | [#6](https://github.com/ratovarius/googleworkspace-cli/issues/6) | [#936](https://github.com/googleworkspace/cli/pull/936) — closed |
+| Preserve credentials after decryption failure | Keep saved credentials intact and report the error instead of silently falling back to another account. | [#7](https://github.com/ratovarius/googleworkspace-cli/issues/7) | [#937](https://github.com/googleworkspace/cli/pull/937) — active pilot |
+| Current Clippy compatibility | Keep the required Rust lint check passing. | [#8](https://github.com/ratovarius/googleworkspace-cli/issues/8) | [#930](https://github.com/googleworkspace/cli/pull/930) — closed; fix included in #937 |
 
 The review and bundle tools are Python standard-library examples for POSIX
 systems, not built-in `gws` subcommands. Their setup and limits are documented
@@ -51,7 +51,7 @@ in [docs-review](examples/docs-review/README.md) and
 different document revisions; the bundle reports those limits instead of
 claiming an atomic snapshot.
 
-The initial publication is tracked in [fork issue #9](https://github.com/ratovarius/cli/issues/9).
+The initial publication is tracked in [fork issue #9](https://github.com/ratovarius/googleworkspace-cli/issues/9).
 
 ## Branches and distribution
 
@@ -77,7 +77,7 @@ on GitHub; it does not publish packages under Google's namespace.
 
 ## Contributing here
 
-Open issues and PRs [in this fork](https://github.com/ratovarius/cli/issues)
+Open issues and PRs [in this fork](https://github.com/ratovarius/googleworkspace-cli/issues)
 for work maintained here. Only the credential-preservation pilot is currently
 being offered upstream. Keep its issue and PR cross-linked so users can follow
 both paths.
