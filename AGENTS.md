@@ -116,7 +116,6 @@ When adding new helpers or CLI flags that accept file paths, **always validate**
 | -------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------- |
 | File path for writing (`--output-dir`) | `validate::validate_safe_output_dir()`   | Absolute paths, `../` traversal, symlinks outside CWD, control chars |
 | File path for reading (`--dir`)        | `validate::validate_safe_dir_path()`     | Absolute paths, `../` traversal, symlinks outside CWD, control chars |
-| File path (`--output`, `--upload`)     | `validate::validate_safe_file_path()`    | Paths outside CWD or the trusted `GOOGLE_WORKSPACE_CLI_FILE_ROOT`, control chars, symlink escapes; `..` components with an explicit root |
 | Enum/allowlist values (`--msg-format`) | clap `value_parser` (see `gmail/mod.rs`) | Any value not in the allowlist                                       |
 
 ```rust
@@ -213,7 +212,6 @@ See [`src/helpers/README.md`](crates/google-workspace-cli/src/helpers/README.md)
 | Variable | Description |
 |---|---|
 | `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` | Override the config directory (default: `~/.config/gws`) |
-| `GOOGLE_WORKSPACE_CLI_FILE_ROOT` | Trusted boundary for `--output` / `--upload` files (default: CWD). Must be an existing directory; canonicalized. Relative CLI paths remain CWD-relative. Does not expand directory validators. |
 
 ### OAuth Client
 
