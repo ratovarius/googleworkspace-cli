@@ -22,6 +22,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 mod read;
+mod suggest;
 
 pub struct DocsHelper;
 
@@ -36,6 +37,7 @@ impl Helper for DocsHelper {
         _doc: &crate::discovery::RestDescription,
     ) -> Command {
         cmd = cmd.subcommand(read::command());
+        cmd = cmd.subcommand(suggest::command());
         cmd = cmd.subcommand(
             Command::new("+write")
                 .about("[Helper] Append text to a document")
@@ -75,6 +77,10 @@ TIPS:
         Box::pin(async move {
             if let Some(matches) = matches.subcommand_matches("+read") {
                 read::handle(doc, matches, sanitize_config).await?;
+                return Ok(true);
+            }
+            if let Some(matches) = matches.subcommand_matches("+suggest") {
+                suggest::handle(doc, matches, sanitize_config).await?;
                 return Ok(true);
             }
             if let Some(matches) = matches.subcommand_matches("+write") {
