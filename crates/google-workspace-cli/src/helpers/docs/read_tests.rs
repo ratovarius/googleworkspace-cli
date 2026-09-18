@@ -216,6 +216,28 @@ fn comment_anchor_resolution_respects_document_segments() {
 }
 
 #[test]
+fn comment_anchor_without_tab_id_uses_enclosing_tab() {
+    let mut input = legacy();
+    input["comments"] = json!([{"commentId": "c2", "anchorId": "a2"}]);
+    input["tabs"] = json!([
+        {"tabProperties": {"tabId": "tab-1"}, "documentTab": {"body": {"content": []}}},
+        {"tabProperties": {"tabId": "tab-2"}, "documentTab": {
+            "body": {"content": [{
+                "startIndex": 1, "endIndex": 7,
+                "paragraph": {"elements": [{
+                    "startIndex": 1, "endIndex": 7,
+                    "textRun": {"content": "second"}
+                }]}
+            }]},
+            "commentAnchors": {"a2": {"ranges": [{"startIndex": 1, "endIndex": 7}]}}
+        }}
+    ]);
+
+    let output = read::normalize_with_comments(&input).unwrap();
+    assert_eq!(output["comments"][0]["referencedText"], json!(["second"]));
+}
+
+#[test]
 fn request_rejects_partial_masks_lossy_views_and_parameter_bypasses() {
     for params in [
         r#"{"fields":"title"}"#,

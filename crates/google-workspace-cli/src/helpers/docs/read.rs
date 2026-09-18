@@ -306,33 +306,46 @@ pub(super) fn normalize_with_comments(document: &Value) -> Result<Value, GwsErro
 
 fn collect_comment_anchors(document: &Value) -> std::collections::HashMap<String, Vec<Value>> {
     let mut anchors = std::collections::HashMap::new();
-    collect_comment_anchors_recursive(document, &mut anchors);
+    collect_comment_anchors_recursive(document, None, &mut anchors);
     anchors
 }
 
 fn collect_comment_anchors_recursive(
     value: &Value,
+    current_tab_id: Option<String>,
     anchors: &mut std::collections::HashMap<String, Vec<Value>>,
 ) {
     match value {
         Value::Object(object) => {
+            let tab_id = object
+                .get("tabId")
+                .and_then(Value::as_str)
+                .map(String::from)
+                .or(current_tab_id);
             if let Some(comment_anchors) = object.get("commentAnchors").and_then(Value::as_object) {
                 for (id, anchor) in comment_anchors {
-                    let ranges = anchor
+                    let mut ranges = anchor
                         .get("ranges")
                         .and_then(Value::as_array)
                         .cloned()
                         .unwrap_or_default();
+                    if let Some(tab_id) = tab_id.as_deref() {
+                        for range in &mut ranges {
+                            if range.get("tabId").is_none() {
+                                range["tabId"] = Value::String(tab_id.to_string());
+                            }
+                        }
+                    }
                     anchors.insert(id.clone(), ranges);
                 }
             }
             for child in object.values() {
-                collect_comment_anchors_recursive(child, anchors);
+                collect_comment_anchors_recursive(child, tab_id.clone(), anchors);
             }
         }
         Value::Array(array) => {
             for child in array {
-                collect_comment_anchors_recursive(child, anchors);
+                collect_comment_anchors_recursive(child, current_tab_id.clone(), anchors);
             }
         }
         _ => {}
