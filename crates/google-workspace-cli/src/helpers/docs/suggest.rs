@@ -247,6 +247,11 @@ async fn build_replace_body(
     }
     let document = matches.get_one::<String>("document").unwrap();
     let find = matches.get_one::<String>("find").unwrap();
+    if find.is_empty() {
+        return Err(GwsError::Validation(
+            "find must not be empty when replacing text".into(),
+        ));
+    }
     let read_matches = read_command_matches(document)?;
     let normalized = read::run(doc, &read_matches, sanitize, async {
         auth::get_token(&["https://www.googleapis.com/auth/documents.readonly"])
@@ -254,7 +259,19 @@ async fn build_replace_body(
             .map_err(|e| GwsError::Auth(format!("Docs auth failed: {e}")))
     })
     .await?;
-    let (tab_id, start, end) = find_unique_text_run(&normalized, find)?;
+    let normalized_value: Value = serde_json::from_str(&normalized)
+        .map_err(|e| GwsError::Validation(format!("Invalid normalized Docs response: {e}")))?;
+    let revision_id = normalized_value
+        .get("revisionId")
+        .and_then(Value::as_str)
+        .filter(|revision| !revision.is_empty())
+        .ok_or_else(|| {
+            GwsError::Validation(
+                "Docs response did not include a revisionId; refusing an unprotected replacement"
+                    .into(),
+            )
+        })?;
+    let (tab_id, start, end) = find_unique_text_run(&normalized, find, tab_id(matches))?;
     let text = matches.get_one::<String>("text").unwrap();
     let mut delete_range = json!({"startIndex": start, "endIndex": end});
     let mut insert_location = json!({"index": start});
@@ -267,7 +284,7 @@ async fn build_replace_body(
             {"deleteContentRange": {"range": delete_range}},
             {"insertText": {"text": text, "location": insert_location}}
         ],
-        "writeControl": {"writeMode": "SUGGEST"}
+        "writeControl": {"writeMode": "SUGGEST", "requiredRevisionId": revision_id}
     })
     .to_string())
 }
@@ -286,9 +303,15 @@ fn read_command_matches(document: &str) -> Result<ArgMatches, GwsError> {
 fn find_unique_text_run(
     document: &str,
     needle: &str,
+    requested_tab: Option<&str>,
 ) -> Result<(Option<String>, i32, i32), GwsError> {
+    if needle.is_empty() {
+        return Err(GwsError::Validation(
+            "Text to replace must not be empty".into(),
+        ));
+    }
     let mut matches = Vec::new();
-    find_text_runs(document, needle, &mut matches);
+    find_text_runs(document, needle, requested_tab, &mut matches);
     match matches.as_slice() {
         [(tab_id, start, end)] => Ok((tab_id.clone(), *start, *end)),
         [] => Err(GwsError::Validation(
@@ -300,11 +323,27 @@ fn find_unique_text_run(
     }
 }
 
-fn find_text_runs(value: &str, needle: &str, matches: &mut Vec<(Option<String>, i32, i32)>) {
+fn find_text_runs(
+    value: &str,
+    needle: &str,
+    requested_tab: Option<&str>,
+    matches: &mut Vec<(Option<String>, i32, i32)>,
+) {
     let Ok(value) = serde_json::from_str::<Value>(value) else {
         return;
     };
-    walk_text_runs(&value, needle, None, matches);
+    let Some(tabs) = value.get("tabs").and_then(Value::as_array) else {
+        return;
+    };
+    for tab in tabs {
+        let tab_id = tab.get("tabId").and_then(Value::as_str).map(String::from);
+        if requested_tab.is_some_and(|requested| tab_id.as_deref() != Some(requested)) {
+            continue;
+        }
+        if let Some(blocks) = tab.get("blocks") {
+            walk_text_runs(blocks, needle, tab_id, matches);
+        }
+    }
 }
 
 fn walk_text_runs(
@@ -326,7 +365,7 @@ fn walk_text_runs(
                     object.get("startIndex").and_then(Value::as_i64),
                     object.get("endIndex").and_then(Value::as_i64),
                 ) {
-                    if let Some(offset) = text.find(needle) {
+                    for offset in text.match_indices(needle).map(|(offset, _)| offset) {
                         let start = start + text[..offset].encode_utf16().count() as i64;
                         let end = start + needle.encode_utf16().count() as i64;
                         if end <= run_end {
@@ -443,8 +482,29 @@ mod tests {
     fn finds_unique_match_using_utf16_indices() {
         let document = r#"{"tabs":[{"tabId":"tab-1","blocks":[{"elements":[{"type":"text","text":"A😀BC","startIndex":5,"endIndex":10}]}]}]}"#;
         assert_eq!(
-            find_unique_text_run(document, "😀B").unwrap(),
+            find_unique_text_run(document, "😀B", None).unwrap(),
             (Some("tab-1".into()), 6, 9)
+        );
+    }
+
+    #[test]
+    fn rejects_empty_replacement_text() {
+        let document = r#"{"tabs":[{"tabId":"tab-1","blocks":[{"elements":[{"type":"text","text":"hello","startIndex":1,"endIndex":6}]}]}]}"#;
+        assert!(find_unique_text_run(document, "", None).is_err());
+    }
+
+    #[test]
+    fn rejects_duplicate_matches_within_one_text_run() {
+        let document = r#"{"tabs":[{"tabId":"tab-1","blocks":[{"elements":[{"type":"text","text":"foo foo","startIndex":1,"endIndex":8}]}]}]}"#;
+        assert!(find_unique_text_run(document, "foo", None).is_err());
+    }
+
+    #[test]
+    fn filters_replacement_matches_by_tab_id() {
+        let document = r#"{"tabs":[{"tabId":"tab-1","blocks":[{"elements":[{"type":"text","text":"foo","startIndex":1,"endIndex":4}]}]},{"tabId":"tab-2","blocks":[{"elements":[{"type":"text","text":"foo","startIndex":1,"endIndex":4}]}]}]}"#;
+        assert_eq!(
+            find_unique_text_run(document, "foo", Some("tab-2")).unwrap(),
+            (Some("tab-2".into()), 1, 4)
         );
     }
 }
