@@ -318,7 +318,9 @@ fn collect_comment_anchors_recursive(
     match value {
         Value::Object(object) => {
             let tab_id = object
-                .get("tabId")
+                .get("tabProperties")
+                .and_then(|properties| properties.get("tabId"))
+                .or_else(|| object.get("tabId"))
                 .and_then(Value::as_str)
                 .map(String::from)
                 .or(current_tab_id);

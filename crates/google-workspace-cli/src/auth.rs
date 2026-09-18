@@ -353,6 +353,23 @@ async fn load_credentials_with_loader(
     default_path: &std::path::Path,
     load_encrypted: impl FnOnce(&std::path::Path) -> anyhow::Result<String>,
 ) -> anyhow::Result<Credential> {
+    load_credentials_with_loaders(
+        env_file,
+        enc_path,
+        default_path,
+        |path| std::fs::symlink_metadata(path),
+        load_encrypted,
+    )
+    .await
+}
+
+async fn load_credentials_with_loaders(
+    env_file: Option<&str>,
+    enc_path: &std::path::Path,
+    default_path: &std::path::Path,
+    metadata: impl FnOnce(&std::path::Path) -> std::io::Result<std::fs::Metadata>,
+    load_encrypted: impl FnOnce(&std::path::Path) -> anyhow::Result<String>,
+) -> anyhow::Result<Credential> {
     // 1. Explicit env var — plaintext file (User or Service Account)
     if let Some(path) = env_file {
         let p = PathBuf::from(path);
@@ -369,7 +386,7 @@ async fn load_credentials_with_loader(
 
     // 2. Encrypted credentials. Inspect symlink metadata so dangling symlinks
     // and inaccessible paths are treated as credential failures, not absence.
-    let encrypted_present = match std::fs::symlink_metadata(enc_path) {
+    let encrypted_present = match metadata(enc_path) {
         Ok(_) => true,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
         Err(_) => {
@@ -938,6 +955,26 @@ mod tests {
             .await
             .expect_err("dangling encrypted credential symlink must block fallback");
         assert!(error.to_string().contains("saved credentials"));
+    }
+
+    #[tokio::test]
+    async fn test_load_credentials_metadata_failure_blocks_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        let enc_path = dir.path().join("credentials.enc");
+        let fallback_path = dir.path().join("credentials.json");
+        let error = load_credentials_with_loaders(
+            None,
+            &enc_path,
+            &fallback_path,
+            |_| Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied)),
+            |_| Ok(String::new()),
+        )
+        .await
+        .expect_err("credential metadata failures must block fallback");
+        assert!(error
+            .to_string()
+            .contains("Failed to inspect saved credentials"));
+        assert!(!error.to_string().contains("No credentials found"));
     }
 
     #[tokio::test]
