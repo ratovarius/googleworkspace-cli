@@ -188,6 +188,15 @@ pub fn validate_safe_file_path(path_str: &str, flag_name: &str) -> Result<PathBu
     )
 }
 
+/// Validates a local file path against the current working directory.
+/// Unlike `validate_safe_file_path`, this intentionally ignores the trusted
+/// file-root override because it is used for flags outside the file-root policy.
+pub fn validate_safe_local_file_path(path_str: &str, flag_name: &str) -> Result<PathBuf, GwsError> {
+    let cwd = std::env::current_dir()
+        .map_err(|e| GwsError::Validation(format!("Failed to determine current directory: {e}")))?;
+    validate_file_path_with_root(path_str, flag_name, &cwd, None)
+}
+
 /// Explicit policy keeps filesystem validation independent of process-global env.
 fn validate_file_path_with_root(
     path_str: &str,

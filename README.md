@@ -154,7 +154,7 @@ server-side validation. This flag grants no additional access.
 
 ### Docs suggestions
 
-On `develop`, `gws docs +suggest` provides a guided workflow for Google Docs
+`gws docs +suggest` provides a guided workflow for Google Docs
 suggestions. It can insert text, replace one exact text run, propose a range
 deletion, list the structured document with suggestion context, and accept,
 reject, or delete an existing suggestion:
@@ -194,9 +194,11 @@ gws docs +comment create \
   --end-index 20
 ```
 
-The helper validates UTF-16 ranges and applies the preview-field opt-in
-internally, so `--allow-unknown-fields` is not required. The request still
-requires edit access and Google Workspace Developer Preview availability.
+The helper validates that the indexes are non-negative and ordered, then leaves
+document-boundary and UTF-16 boundary validation to Google. It applies the
+preview-field opt-in internally, so `--allow-unknown-fields` is not required.
+The request still requires edit access and Google Workspace Developer Preview
+availability.
 
 ```bash
 # Preview a suggested insertion (Docs Developer Preview).

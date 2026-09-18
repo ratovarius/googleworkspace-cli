@@ -61,7 +61,7 @@ pub(super) async fn handle(
     let params = document_params(action_matches)?;
     let body = build_comment_create_body(action_matches)?;
     let dry_run = action_matches.get_flag("dry-run");
-    let scopes: Vec<&str> = method.scopes.iter().map(String::as_str).collect();
+    let scopes: Vec<&str> = crate::select_scope(&method.scopes).into_iter().collect();
     let token = if dry_run {
         None
     } else {

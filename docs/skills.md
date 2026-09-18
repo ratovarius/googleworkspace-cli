@@ -46,6 +46,9 @@ Shortcut commands for common operations.
 | [gws-gmail-watch](../skills/gws-gmail-watch/SKILL.md) | Gmail: Watch for new emails and stream them as NDJSON. |
 | [gws-calendar-insert](../skills/gws-calendar-insert/SKILL.md) | Google Calendar: Create a new event. |
 | [gws-calendar-agenda](../skills/gws-calendar-agenda/SKILL.md) | Google Calendar: Show upcoming events across all calendars. |
+| [gws-docs-read](../skills/gws-docs-read/SKILL.md) | Google Docs: Read a document as compact structured content. |
+| [gws-docs-suggest](../skills/gws-docs-suggest/SKILL.md) | Google Docs: Create and manage Docs suggestions. |
+| [gws-docs-comment](../skills/gws-docs-comment/SKILL.md) | Google Docs: Create a comment anchored to document text. |
 | [gws-docs-write](../skills/gws-docs-write/SKILL.md) | Google Docs: Append text to a document. |
 | [gws-chat-send](../skills/gws-chat-send/SKILL.md) | Google Chat: Send a message to a space. |
 | [gws-events-subscribe](../skills/gws-events-subscribe/SKILL.md) | Google Workspace Events: Subscribe to Workspace events and stream them as NDJSON. |

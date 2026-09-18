@@ -1319,7 +1319,7 @@ pub(super) fn parse_attachments(matches: &ArgMatches) -> Result<Vec<Attachment>,
     let mut total_bytes: u64 = 0;
 
     for path in paths {
-        let canonical = crate::validate::validate_safe_file_path(path, "--attach")?;
+        let canonical = crate::validate::validate_safe_local_file_path(path, "--attach")?;
 
         let metadata = std::fs::metadata(&canonical)
             .map_err(|e| GwsError::Validation(format!("Cannot read --attach '{path}': {e}")))?;
