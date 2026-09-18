@@ -274,12 +274,12 @@ pub(super) fn normalize(document: &Value) -> Result<Value, GwsError> {
 
 pub(super) fn normalize_with_comments(document: &Value) -> Result<Value, GwsError> {
     let mut output = normalize(document)?;
-    let comments = document
-        .get("comments")
-        .and_then(Value::as_array)
-        .ok_or_else(|| {
-            invalid_content("comments were requested but response has no comments array")
-        })?;
+    let comments: &[Value] = match document.get("comments") {
+        Some(comments) => comments
+            .as_array()
+            .ok_or_else(|| invalid_content("response comments field is not an array"))?,
+        None => &[],
+    };
     let anchors = collect_comment_anchors(document);
     let text_runs = collect_text_runs(&output);
     let enriched = comments

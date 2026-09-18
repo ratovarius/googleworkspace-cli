@@ -485,6 +485,7 @@ gws drive --help      # shows +upload …
 | `sheets` | `+read` | Read values from a spreadsheet |
 | `docs` | `+write` | Append text to a document |
 | `docs` | `+suggest` | Create and manage document suggestions |
+| `docs` | `+comment` | Create anchored document comments |
 | `chat` | `+send` | Send a message to a space |
 | `drive` | `+upload` | Upload a file with automatic metadata |
 | `calendar` | `+insert` | Create a new event |

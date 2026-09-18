@@ -175,6 +175,12 @@ fn comments_include_text_for_each_anchor_range() {
 }
 
 #[test]
+fn comments_without_threads_are_returned_as_empty() {
+    let output = read::normalize_with_comments(&legacy()).unwrap();
+    assert_eq!(output["comments"], json!([]));
+}
+
+#[test]
 fn request_rejects_partial_masks_lossy_views_and_parameter_bypasses() {
     for params in [
         r#"{"fields":"title"}"#,
