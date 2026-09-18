@@ -225,5 +225,4 @@ mod tests {
         assert!(body.contains("endOfSegmentLocation"));
         assert_eq!(scopes[0], "https://scope");
     }
-
 }
