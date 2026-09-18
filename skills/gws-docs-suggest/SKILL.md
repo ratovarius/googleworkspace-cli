@@ -42,4 +42,4 @@ gws docs +suggest accept --document DOC_ID --suggestion-id SUGGESTION_ID
 ## See Also
 
 - [gws-shared](../gws-shared/SKILL.md) — Global flags and auth
-- [gws-docs](../gws-docs/SKILL.md) — All read and write google docs commands
+- [gws-docs](../gws-docs/SKILL.md) — All read and write Google Docs commands

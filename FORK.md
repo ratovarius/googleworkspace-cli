@@ -73,7 +73,7 @@ from `main` without rewriting history.
 
 Install this fork from source using the [README](README.md#installation).
 The upstream npm, crates.io, Homebrew, and binary releases do not include
-fork-only changes. Package names and version `0.22.5` currently retain their
+fork-only changes. Package names and version `0.23.0` currently retain their
 upstream values for source compatibility; identify a fork build by its Git
 commit. The inherited `npm/` downloader remains an upstream distribution tool,
 not an installer for this fork.
