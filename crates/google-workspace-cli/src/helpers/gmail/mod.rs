@@ -1319,7 +1319,7 @@ pub(super) fn parse_attachments(matches: &ArgMatches) -> Result<Vec<Attachment>,
     let mut total_bytes: u64 = 0;
 
     for path in paths {
-        let canonical = crate::validate::validate_safe_file_path(path, "--attach")?;
+        let canonical = crate::validate::validate_safe_local_file_path(path, "--attach")?;
 
         let metadata = std::fs::metadata(&canonical)
             .map_err(|e| GwsError::Validation(format!("Cannot read --attach '{path}': {e}")))?;
@@ -3008,6 +3008,28 @@ mod tests {
 
     // --- Attachment tests ---
 
+    // Attachment parsing calls the public file validator. Default-policy tests
+    // must ignore and restore an inherited operator root, including on panic.
+    // All users of this guard are serialized with the other environment tests.
+    struct DefaultFileRoot(Option<std::ffi::OsString>);
+
+    impl DefaultFileRoot {
+        fn unset() -> Self {
+            let saved = Self(std::env::var_os("GOOGLE_WORKSPACE_CLI_FILE_ROOT"));
+            std::env::remove_var("GOOGLE_WORKSPACE_CLI_FILE_ROOT");
+            saved
+        }
+    }
+
+    impl Drop for DefaultFileRoot {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(root) => std::env::set_var("GOOGLE_WORKSPACE_CLI_FILE_ROOT", root),
+                None => std::env::remove_var("GOOGLE_WORKSPACE_CLI_FILE_ROOT"),
+            }
+        }
+    }
+
     fn make_attach_matches(args: &[&str]) -> ArgMatches {
         let cmd = Command::new("test").arg(
             Arg::new("attach")
@@ -3095,14 +3117,18 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_rejects_control_chars() {
+        let _root = DefaultFileRoot::unset();
         let matches = make_attach_matches(&["test", "-a", "file\0name.pdf"]);
         let err = parse_attachments(&matches).unwrap_err();
         assert!(err.to_string().contains("control characters"));
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_rejects_directory() {
+        let _root = DefaultFileRoot::unset();
         // Use a relative directory that exists in CWD
         let matches = make_attach_matches(&["test", "-a", "src"]);
         let err = parse_attachments(&matches).unwrap_err();
@@ -3110,14 +3136,18 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_empty_returns_empty_vec() {
+        let _root = DefaultFileRoot::unset();
         let matches = make_attach_matches(&["test"]);
         let attachments = parse_attachments(&matches).unwrap();
         assert!(attachments.is_empty());
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_reads_real_file() {
+        let _root = DefaultFileRoot::unset();
         use std::io::Write;
         let cwd = std::env::current_dir().unwrap().canonicalize().unwrap();
         let dir = tempfile::tempdir_in(&cwd).unwrap();
@@ -3137,7 +3167,35 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
+    fn test_parse_attachments_ignores_configured_file_root() {
+        let _root = DefaultFileRoot::unset();
+        use std::io::Write;
+        let cwd = std::env::current_dir().unwrap().canonicalize().unwrap();
+        let local_dir = tempfile::tempdir_in(&cwd).unwrap();
+        let local_file = local_dir.path().join("local.txt");
+        std::fs::write(&local_file, b"local").unwrap();
+
+        let external_dir = tempfile::tempdir().unwrap();
+        let external_file = external_dir.path().join("external.txt");
+        let mut file = std::fs::File::create(&external_file).unwrap();
+        file.write_all(b"external").unwrap();
+        drop(file);
+        std::env::set_var("GOOGLE_WORKSPACE_CLI_FILE_ROOT", external_dir.path());
+
+        let local_matches = make_attach_matches(&["test", "-a", local_file.to_str().unwrap()]);
+        assert!(parse_attachments(&local_matches).is_ok());
+
+        let external_matches =
+            make_attach_matches(&["test", "-a", external_file.to_str().unwrap()]);
+        let err = parse_attachments(&external_matches).unwrap_err();
+        assert!(err.to_string().contains("outside the current directory"));
+    }
+
+    #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_nonexistent_file() {
+        let _root = DefaultFileRoot::unset();
         let matches = make_attach_matches(&["test", "-a", "nonexistent_file.pdf"]);
         let err = parse_attachments(&matches).unwrap_err();
         assert!(
@@ -3148,7 +3206,9 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_unknown_extension_falls_back_to_octet_stream() {
+        let _root = DefaultFileRoot::unset();
         use std::io::Write;
         let cwd = std::env::current_dir().unwrap().canonicalize().unwrap();
         let dir = tempfile::tempdir_in(&cwd).unwrap();
@@ -3165,7 +3225,9 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_size_limit_accumulates() {
+        let _root = DefaultFileRoot::unset();
         let cwd = std::env::current_dir().unwrap().canonicalize().unwrap();
         let dir = tempfile::tempdir_in(&cwd).unwrap();
 
@@ -3193,7 +3255,9 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_parse_attachments_rejects_empty_file() {
+        let _root = DefaultFileRoot::unset();
         let cwd = std::env::current_dir().unwrap().canonicalize().unwrap();
         let dir = tempfile::tempdir_in(&cwd).unwrap();
         let file_path = dir.path().join("empty.txt");

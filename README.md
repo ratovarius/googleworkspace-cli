@@ -119,6 +119,108 @@ gws schema drive.files.list
 gws drive files list --params '{"pageSize": 100}' --page-all | jq -r '.files[].name'
 ```
 
+Discovery-generated API commands and `gws docs +write` support credential-free
+`--dry-run`: they validate inputs and display the request without obtaining a
+token, accessing the keyring, reading or changing stored credentials, or sending
+the API request.
+
+```bash
+# Preview a Docs append without signing in
+gws docs +write --document DOC_ID --text 'Hello, world!' --dry-run
+```
+
+These previews work offline with a fresh cached Discovery schema (24-hour TTL).
+First use or an expired cache can still fetch the schema over the network.
+Other helpers may need authenticated reads to prepare their plans; this guarantee
+applies to raw API commands and `docs +write`.
+
+### Fields absent from Discovery
+
+Raw API methods with a request body accept `--allow-unknown-fields` alongside
+`--json`. Use it explicitly when an API supports fields that its public Discovery
+document does not yet describe. It allows unknown properties recursively,
+including nested objects and array elements, and forwards their values unchanged.
+JSON is still parsed and serialized normally; whitespace and key order may change.
+
+Validation remains strict by default. With the flag, known-field types, enums and
+required fields are still checked, as are JSON syntax, required URL parameters and
+file paths. It does not allow new enum values on a known field. The flag is local
+to raw methods and does not apply to handwritten `+` helpers.
+
+For example, Docs suggestions and comments require a Cloud project enrolled in the
+[Google Workspace Developer Preview Program](https://developers.google.com/workspace/preview).
+Google still enforces API availability, OAuth scopes, document permissions and
+server-side validation. This flag grants no additional access.
+
+### Docs suggestions
+
+`gws docs +suggest` provides a guided workflow for Google Docs
+suggestions. It can insert text, replace one exact text run, propose a range
+deletion, list the structured document with suggestion context, and accept,
+reject, or delete an existing suggestion:
+
+```bash
+gws docs +suggest insert --document DOC_ID --text 'Suggested text'
+gws docs +suggest replace --document DOC_ID --find 'old text' --text 'new text'
+gws docs +suggest delete-text --document DOC_ID --start-index 10 --end-index 20
+gws docs +suggest list --document DOC_ID
+gws docs +suggest accept --document DOC_ID --suggestion-id SUGGESTION_ID
+```
+
+The helper applies the preview-only `writeMode` request fields internally, so
+these commands do not need `--allow-unknown-fields`. Suggestion writes remain
+subject to Google Workspace Developer Preview access and document permissions.
+
+### Reading comments and their text anchors
+
+Use `--include-comments` with `gws docs +read` to retrieve comment threads and
+resolve each anchored range to the text it refers to:
+
+```bash
+gws docs +read --document DOC_ID --include-comments
+```
+
+Each comment includes its thread data, anchor ranges, and `referencedText`, an
+array with one value per anchored range. Unresolvable ranges are returned as
+`null`; comments remain opt-in because they may contain sensitive content.
+
+Create a comment without manually constructing the preview API payload:
+
+```bash
+gws docs +comment create \
+  --document DOC_ID \
+  --text 'Please review this.' \
+  --start-index 1 \
+  --end-index 20
+```
+
+The helper validates that the indexes are non-negative and ordered, then leaves
+document-boundary and UTF-16 boundary validation to Google. It applies the
+preview-field opt-in internally, so `--allow-unknown-fields` is not required.
+The request still requires edit access and Google Workspace Developer Preview
+availability.
+
+```bash
+# Preview a suggested insertion (Docs Developer Preview).
+gws docs documents batchUpdate \
+  --params '{"documentId":"DOCUMENT_ID"}' \
+  --json '{"requests":[{"insertText":{"location":{"index":1},"text":"Suggested text"}}],"writeControl":{"writeMode":"SUGGEST"}}' \
+  --allow-unknown-fields --dry-run
+
+# Preview a comment anchored to existing text; adjust the range for your document.
+gws docs documents batchUpdate \
+  --params '{"documentId":"DOCUMENT_ID"}' \
+  --json '{"requests":[{"insertComment":{"content":"Please review this text.","range":{"startIndex":1,"endIndex":5}}}]}' \
+  --allow-unknown-fields --dry-run
+```
+
+`--dry-run` uses the same validation policy and shows the request without sending
+it. It cannot verify preview enrollment or server acceptance. Remove `--dry-run`
+to submit a request. See the Docs
+[request reference](https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/request#InsertCommentRequest)
+for preview field requirements.
+
+
 ## Authentication
 
 The CLI supports multiple auth workflows so it works on your laptop, in CI, and on a server.
@@ -230,6 +332,26 @@ export GOOGLE_WORKSPACE_CLI_TOKEN=$(gcloud auth print-access-token)
 
 Environment variables can also live in a `.env` file.
 
+### Troubleshooting saved credentials
+
+If `gws` cannot read or decrypt `credentials.enc` (including a keyring access
+failure), it returns an authentication error and preserves that file,
+`token_cache.json`, and `sa_token_cache.json`. It does not silently switch to
+plaintext credentials or Application Default Credentials (ADC). This applies to
+the default configuration directory and `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`.
+
+Check that you are using the original configuration directory and can access its
+original OS keyring or encryption key. Back up the configuration before changing
+key storage or replacing credentials. Preservation does not recover a lost key.
+If you intentionally want to discard saved credentials and sign in again, use
+`gws auth logout` followed by `gws auth login`; logout still removes saved
+credentials and token caches.
+
+An explicit `GOOGLE_WORKSPACE_CLI_TOKEN` or
+`GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE` still takes precedence. A missing or invalid
+explicit credentials file is an error. When no encrypted credentials file exists,
+the usual plaintext and ADC fallback remains available.
+
 ## AI Agent Skills
 
 The repo ships 100+ Agent Skills (`SKILL.md` files) — one for every supported API, plus higher-level helpers for common workflows and 50 curated recipes for Gmail, Drive, Docs, Calendar, and Sheets. See the full [Skills Index](docs/skills.md) for the complete list.
@@ -281,6 +403,39 @@ Installing this extension gives your Gemini CLI agent direct access to all `gws`
 gws drive files create --json '{"name": "report.pdf"}' --upload ./report.pdf
 ```
 
+### Output and upload file roots
+
+`--output` and `--upload` accept paths within the current working directory
+(CWD) by default, including absolute paths that resolve inside CWD. To allow
+files elsewhere, set a trusted operator environment variable to an existing
+directory:
+
+```bash
+mkdir -p /tmp/gws-files
+export GOOGLE_WORKSPACE_CLI_FILE_ROOT=/tmp/gws-files
+gws drive files get --params '{"fileId":"FILE_ID","alt":"media"}' \
+  --output /tmp/gws-files/report.pdf
+gws drive files create --json '{"name":"report.pdf"}' \
+  --upload /tmp/gws-files/report.pdf
+```
+
+The root replaces the allowed file boundary; relative CLI paths still resolve
+from CWD. For example, `--output report.pdf` is rejected if CWD is outside the
+configured root. The root is canonicalized and must exist as a directory; an
+empty or invalid value fails validation. Relative root settings resolve from
+CWD too. With an explicit root, CLI paths containing `..` components are
+rejected. Control characters and symlinks escaping the boundary are rejected;
+symlinks resolving inside it are allowed, but dangling symlinks are rejected.
+These CLI file flags require a UTF-8 canonical path. If a symlink resolves to a
+path with unsupported encoding, the command returns a validation error rather
+than dropping the upload or selecting the default output file.
+
+This setting affects only these file flags, not `--dir` or `--output-dir`.
+It does not create parent directories or change the default download filename
+when `--output` is omitted. Validation cannot prevent another local process
+from replacing a path component between validation and I/O; choose a root
+whose directories you control. Unset the variable to restore the CWD boundary.
+
 ### Pagination
 
 | Flag                | Description                                    | Default |
@@ -331,6 +486,8 @@ gws drive --help      # shows +upload …
 | `sheets` | `+append` | Append a row to a spreadsheet |
 | `sheets` | `+read` | Read values from a spreadsheet |
 | `docs` | `+write` | Append text to a document |
+| `docs` | `+suggest` | Create and manage document suggestions |
+| `docs` | `+comment` | Create anchored document comments |
 | `chat` | `+send` | Send a message to a space |
 | `drive` | `+upload` | Upload a file with automatic metadata |
 | `calendar` | `+insert` | Create a new event |
@@ -397,6 +554,7 @@ All variables are optional. See [`.env.example`](.env.example) for a copy-paste 
 | `GOOGLE_WORKSPACE_CLI_CLIENT_ID` | OAuth client ID (alternative to `client_secret.json`) |
 | `GOOGLE_WORKSPACE_CLI_CLIENT_SECRET` | OAuth client secret (paired with `CLIENT_ID`) |
 | `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` | Override config directory (default: `~/.config/gws`) |
+| `GOOGLE_WORKSPACE_CLI_FILE_ROOT` | Existing directory allowed for `--output` / `--upload` paths (default: CWD); relative CLI paths remain CWD-relative |
 | `GOOGLE_WORKSPACE_CLI_SANITIZE_TEMPLATE` | Default Model Armor template |
 | `GOOGLE_WORKSPACE_CLI_SANITIZE_MODE` | `warn` (default) or `block` |
 | `GOOGLE_WORKSPACE_CLI_LOG` | Log level for stderr (e.g., `gws=debug`). Off by default. |
