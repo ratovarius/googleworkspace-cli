@@ -161,7 +161,7 @@ async fn execute_suggestion_write(
     matches: &ArgMatches,
 ) -> Result<(), GwsError> {
     let dry_run = matches.get_flag("dry-run");
-    let scopes: Vec<&str> = method.scopes.iter().map(String::as_str).collect();
+    let scopes: Vec<&str> = crate::select_scope(&method.scopes).into_iter().collect();
     let token = if dry_run {
         None
     } else {
@@ -332,16 +332,28 @@ fn find_text_runs(
     let Ok(value) = serde_json::from_str::<Value>(value) else {
         return;
     };
-    let Some(tabs) = value.get("tabs").and_then(Value::as_array) else {
-        return;
-    };
-    for tab in tabs {
-        let tab_id = tab.get("tabId").and_then(Value::as_str).map(String::from);
-        if requested_tab.is_some_and(|requested| tab_id.as_deref() != Some(requested)) {
-            continue;
+    if let Some(tabs) = value.get("tabs").and_then(Value::as_array) {
+        for tab in tabs {
+            walk_tab_text_runs(tab, needle, requested_tab, matches);
         }
+    }
+}
+
+fn walk_tab_text_runs(
+    tab: &Value,
+    needle: &str,
+    requested_tab: Option<&str>,
+    matches: &mut Vec<(Option<String>, i32, i32)>,
+) {
+    let tab_id = tab.get("tabId").and_then(Value::as_str).map(String::from);
+    if requested_tab.is_none_or(|requested| tab_id.as_deref() == Some(requested)) {
         if let Some(blocks) = tab.get("blocks") {
-            walk_text_runs(blocks, needle, tab_id, matches);
+            walk_text_runs(blocks, needle, tab_id.clone(), matches);
+        }
+    }
+    if let Some(children) = tab.get("childTabs").and_then(Value::as_array) {
+        for child in children {
+            walk_tab_text_runs(child, needle, requested_tab, matches);
         }
     }
 }
@@ -365,7 +377,9 @@ fn walk_text_runs(
                     object.get("startIndex").and_then(Value::as_i64),
                     object.get("endIndex").and_then(Value::as_i64),
                 ) {
-                    for offset in text.match_indices(needle).map(|(offset, _)| offset) {
+                    for offset in text.char_indices().filter_map(|(offset, _)| {
+                        text[offset..].starts_with(needle).then_some(offset)
+                    }) {
                         let start = start + text[..offset].encode_utf16().count() as i64;
                         let end = start + needle.encode_utf16().count() as i64;
                         if end <= run_end {
@@ -505,6 +519,21 @@ mod tests {
         assert_eq!(
             find_unique_text_run(document, "foo", Some("tab-2")).unwrap(),
             (Some("tab-2".into()), 1, 4)
+        );
+    }
+
+    #[test]
+    fn rejects_overlapping_matches() {
+        let document = r#"{"tabs":[{"tabId":"tab-1","blocks":[{"elements":[{"type":"text","text":"aaa","startIndex":1,"endIndex":4}]}]}]}"#;
+        assert!(find_unique_text_run(document, "aa", None).is_err());
+    }
+
+    #[test]
+    fn finds_text_in_child_tabs() {
+        let document = r#"{"tabs":[{"tabId":"root","blocks":[],"childTabs":[{"tabId":"child","blocks":[{"elements":[{"type":"text","text":"child text","startIndex":1,"endIndex":11}]}],"childTabs":[]}]}]}"#;
+        assert_eq!(
+            find_unique_text_run(document, "child", Some("child")).unwrap(),
+            (Some("child".into()), 1, 6)
         );
     }
 }
