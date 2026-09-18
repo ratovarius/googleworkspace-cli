@@ -127,7 +127,11 @@ pub(super) async fn handle(
             let body = build_suggestion_action_body(action, action_matches)?;
             (document_params(action_matches)?, body, method)
         }
-        _ => return Err(GwsError::Validation(format!("Unknown suggestion action: {action}"))),
+        _ => {
+            return Err(GwsError::Validation(format!(
+                "Unknown suggestion action: {action}"
+            )))
+        }
     };
 
     execute_suggestion_write(doc, method, &params, &body, sanitize, action_matches).await
@@ -279,13 +283,20 @@ fn read_command_matches(document: &str) -> Result<ArgMatches, GwsError> {
         .map_err(|e| GwsError::Validation(format!("Unable to prepare document read: {e}")))
 }
 
-fn find_unique_text_run(document: &str, needle: &str) -> Result<(Option<String>, i32, i32), GwsError> {
+fn find_unique_text_run(
+    document: &str,
+    needle: &str,
+) -> Result<(Option<String>, i32, i32), GwsError> {
     let mut matches = Vec::new();
     find_text_runs(document, needle, &mut matches);
     match matches.as_slice() {
         [(tab_id, start, end)] => Ok((tab_id.clone(), *start, *end)),
-        [] => Err(GwsError::Validation("Text to replace was not found in one text run".into())),
-        _ => Err(GwsError::Validation("Text to replace matched more than once".into())),
+        [] => Err(GwsError::Validation(
+            "Text to replace was not found in one text run".into(),
+        )),
+        _ => Err(GwsError::Validation(
+            "Text to replace matched more than once".into(),
+        )),
     }
 }
 
@@ -362,7 +373,11 @@ fn build_suggestion_action_body(action: &str, matches: &ArgMatches) -> Result<St
         "accept" => json!({"acceptSuggestion": {"suggestionId": suggestion_id}}),
         "reject" => json!({"rejectSuggestion": {"suggestionId": suggestion_id}}),
         "delete" => json!({"deleteSuggestion": {"suggestionId": suggestion_id}}),
-        _ => return Err(GwsError::Validation(format!("Unknown suggestion action: {action}"))),
+        _ => {
+            return Err(GwsError::Validation(format!(
+                "Unknown suggestion action: {action}"
+            )))
+        }
     };
     Ok(json!({"requests": [request]}).to_string())
 }
@@ -386,12 +401,18 @@ mod tests {
     fn delete_text_rejects_invalid_range() {
         let matches = command()
             .try_get_matches_from([
-                "+suggest", "delete-text", "--document", "doc", "--start-index", "4",
-                "--end-index", "4",
+                "+suggest",
+                "delete-text",
+                "--document",
+                "doc",
+                "--start-index",
+                "4",
+                "--end-index",
+                "4",
             ])
             .unwrap();
-        let error = build_delete_text_body(matches.subcommand_matches("delete-text").unwrap())
-            .unwrap_err();
+        let error =
+            build_delete_text_body(matches.subcommand_matches("delete-text").unwrap()).unwrap_err();
         assert!(error.to_string().contains("end-index"));
     }
 
@@ -399,12 +420,22 @@ mod tests {
     fn suggestion_action_uses_requested_id() {
         let matches = command()
             .try_get_matches_from([
-                "+suggest", "accept", "--document", "doc", "--suggestion-id", "s1",
+                "+suggest",
+                "accept",
+                "--document",
+                "doc",
+                "--suggestion-id",
+                "s1",
             ])
             .unwrap();
-        let body = build_suggestion_action_body("accept", matches.subcommand_matches("accept").unwrap()).unwrap();
+        let body =
+            build_suggestion_action_body("accept", matches.subcommand_matches("accept").unwrap())
+                .unwrap();
         let body: Value = serde_json::from_str(&body).unwrap();
-        assert_eq!(body["requests"][0]["acceptSuggestion"]["suggestionId"], "s1");
+        assert_eq!(
+            body["requests"][0]["acceptSuggestion"]["suggestionId"],
+            "s1"
+        );
         assert!(body.get("writeControl").is_none());
     }
 
