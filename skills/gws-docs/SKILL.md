@@ -2,7 +2,7 @@
 name: gws-docs
 description: "Read and write Google Docs."
 metadata:
-  version: 0.22.5
+  version: 0.23.0
   openclaw:
     category: "productivity"
     requires:
@@ -23,6 +23,9 @@ gws docs <resource> <method> [flags]
 
 | Command | Description |
 |---------|-------------|
+| [`+read`](../gws-docs-read/SKILL.md) | Read a document as compact structured content |
+| [`+suggest`](../gws-docs-suggest/SKILL.md) | Create and manage Docs suggestions |
+| [`+comment`](../gws-docs-comment/SKILL.md) | Create a comment anchored to document text |
 | [`+write`](../gws-docs-write/SKILL.md) | Append text to a document |
 
 ## API Resources

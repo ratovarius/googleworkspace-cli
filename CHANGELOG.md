@@ -1,5 +1,75 @@
 # @googleworkspace/cli
 
+## 0.23.0
+
+### Minor Changes
+
+- c13b864: Add `--allow-unknown-fields` to raw API methods with JSON request bodies. Explicitly
+  allow fields absent from Discovery recursively, including in dry runs, while
+  preserving validation of known fields, required fields, JSON, URLs and file paths.
+  Handwritten helpers retain strict validation.
+- f81bf9f: Add `gws docs +comment create` for creating anchored Google Docs comments
+  without manually using preview-only request fields.
+- b0c6482: Add `--include-comments` to `gws docs +read` to return comment threads and the
+  text referenced by each comment anchor range.
+- c13b864: Add a standalone Python companion for visual Google Docs review bundles with
+  native exports, safe DOCX raster extraction, local HTML, optional PDF page
+  previews with explicitly unverified page coverage, revision observations,
+  and an offline fixture workflow. Preserve nested image occurrences and
+  legitimate asset reuse, and keep oversized optional comments from failing
+  the required bundle. Verify each export's exact canonical destination against
+  the real CLI receipt.
+- c13b864: Add a standalone Python Docs review example that plans one literal text replacement,
+  binds it to a source revision and tab, applies it through existing gws commands,
+  and verifies the result without retrying ambiguous writes. Validate structures
+  and text ranges across all tabs before normalization, and preserve attempted or
+  confirmed mutation outcomes through final output failures and interruptions.
+- c13b864: Add `gws docs +read` to translate documents into compact structured content with
+  recursive tabs, headings and an outline, styled text, suggestions, nested tables,
+  figure metadata, and reference markers. Preserve API indices and revisions,
+  reject partial field masks, and support the existing formatters, sanitization,
+  and credential-free dry-run.
+- e6ef7a9: Add `gws docs +suggest` for creating and managing Google Docs suggestions,
+  including suggested insertions, exact replacements, range deletions, and
+  accept, reject, or delete actions.
+- c13b864: Allow operators to set `GOOGLE_WORKSPACE_CLI_FILE_ROOT` to an existing directory
+  for `--output` and `--upload` paths while keeping CWD confinement by default.
+  Relative CLI paths remain CWD-relative. Reject invalid roots, parent traversal
+  with an explicit root, control characters, and symlink escapes, including
+  dangling symlinks. Directory flags retain their existing boundaries.
+
+  Reject canonical file paths that cannot be represented as UTF-8 at the CLI
+  string boundary, so explicit output/upload paths cannot silently become omitted
+  arguments.
+
+- a3768d0: Add `--range` flag to `sheets +append` for targeting specific sheet tabs
+
+### Patch Changes
+
+- 5db4424: Keep Apps Script file selection compatible with the current Clippy checks.
+- 05836b4: Keep unreleased work on develop. Require a versioned develop-to-main release PR,
+  run Rust and companion checks before publication, and create a fork-prefixed
+  GitHub release at the tested merge commit.
+- 18410e9: Publish the integrated Docs workflow improvements in the independent ratovarius
+  fork with upstream attribution, source-install instructions, contribution
+  tracking, and credential-independent CI.
+- c13b864: Skip authentication for Discovery-generated API and `docs +write` dry-runs.
+  Validate and preview requests without accessing the keyring or reading, changing,
+  or deleting stored credentials and token caches. Dry-runs work offline with a
+  fresh cached Discovery schema; schema fetching on first use or cache expiry is
+  unchanged. Real requests retain their existing authentication and error handling.
+- c13b864: Preserve saved encrypted credentials and token caches when credential loading,
+  decryption, or keyring access fails. Report recovery guidance and stop authentication
+  instead of silently selecting plaintext credentials or another account through ADC.
+  Explicit token and credentials-file overrides and intentional logout remain unchanged.
+- 05fb6c2: Rename the maintained fork to ratovarius/googleworkspace-cli and update repository
+  links, source installation examples, package metadata, CLI help, and agent guidance.
+- 465b98f: Document credential preservation as the sole upstream pilot and keep further
+  development of the other improvements in this public fork.
+- c13b864: Fix YAML mapping values containing empty arrays or objects by separating their
+  inline collection syntax from the mapping colon. This also fixes structured
+  Docs reader output with empty outlines, child tabs, or style maps.
+
 ## 0.22.5
 
 ### Patch Changes

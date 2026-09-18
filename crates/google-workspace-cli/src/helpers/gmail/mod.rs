@@ -1319,7 +1319,7 @@ pub(super) fn parse_attachments(matches: &ArgMatches) -> Result<Vec<Attachment>,
     let mut total_bytes: u64 = 0;
 
     for path in paths {
-        let canonical = crate::validate::validate_safe_file_path(path, "--attach")?;
+        let canonical = crate::validate::validate_safe_local_file_path(path, "--attach")?;
 
         let metadata = std::fs::metadata(&canonical)
             .map_err(|e| GwsError::Validation(format!("Cannot read --attach '{path}': {e}")))?;
@@ -3164,6 +3164,32 @@ mod tests {
         assert_eq!(attachments[0].filename, "test.txt");
         assert_eq!(attachments[0].content_type, "text/plain");
         assert_eq!(attachments[0].data, b"hello world");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_parse_attachments_ignores_configured_file_root() {
+        let _root = DefaultFileRoot::unset();
+        use std::io::Write;
+        let cwd = std::env::current_dir().unwrap().canonicalize().unwrap();
+        let local_dir = tempfile::tempdir_in(&cwd).unwrap();
+        let local_file = local_dir.path().join("local.txt");
+        std::fs::write(&local_file, b"local").unwrap();
+
+        let external_dir = tempfile::tempdir().unwrap();
+        let external_file = external_dir.path().join("external.txt");
+        let mut file = std::fs::File::create(&external_file).unwrap();
+        file.write_all(b"external").unwrap();
+        drop(file);
+        std::env::set_var("GOOGLE_WORKSPACE_CLI_FILE_ROOT", external_dir.path());
+
+        let local_matches = make_attach_matches(&["test", "-a", local_file.to_str().unwrap()]);
+        assert!(parse_attachments(&local_matches).is_ok());
+
+        let external_matches =
+            make_attach_matches(&["test", "-a", external_file.to_str().unwrap()]);
+        let err = parse_attachments(&external_matches).unwrap_err();
+        assert!(err.to_string().contains("outside the current directory"));
     }
 
     #[test]
