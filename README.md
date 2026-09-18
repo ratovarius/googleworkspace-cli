@@ -184,6 +184,20 @@ Each comment includes its thread data, anchor ranges, and `referencedText`, an
 array with one value per anchored range. Unresolvable ranges are returned as
 `null`; comments remain opt-in because they may contain sensitive content.
 
+Create a comment without manually constructing the preview API payload:
+
+```bash
+gws docs +comment create \
+  --document DOC_ID \
+  --text 'Please review this.' \
+  --start-index 1 \
+  --end-index 20
+```
+
+The helper validates UTF-16 ranges and applies the preview-field opt-in
+internally, so `--allow-unknown-fields` is not required. The request still
+requires edit access and Google Workspace Developer Preview availability.
+
 ```bash
 # Preview a suggested insertion (Docs Developer Preview).
 gws docs documents batchUpdate \

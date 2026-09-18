@@ -21,6 +21,7 @@ use serde_json::json;
 use std::future::Future;
 use std::pin::Pin;
 
+mod comment;
 mod read;
 mod suggest;
 
@@ -38,6 +39,7 @@ impl Helper for DocsHelper {
     ) -> Command {
         cmd = cmd.subcommand(read::command());
         cmd = cmd.subcommand(suggest::command());
+        cmd = cmd.subcommand(comment::command());
         cmd = cmd.subcommand(
             Command::new("+write")
                 .about("[Helper] Append text to a document")
@@ -81,6 +83,10 @@ TIPS:
             }
             if let Some(matches) = matches.subcommand_matches("+suggest") {
                 suggest::handle(doc, matches, sanitize_config).await?;
+                return Ok(true);
+            }
+            if let Some(matches) = matches.subcommand_matches("+comment") {
+                comment::handle(doc, matches, sanitize_config).await?;
                 return Ok(true);
             }
             if let Some(matches) = matches.subcommand_matches("+write") {
