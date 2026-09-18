@@ -152,6 +152,25 @@ For example, Docs suggestions and comments require a Cloud project enrolled in t
 Google still enforces API availability, OAuth scopes, document permissions and
 server-side validation. This flag grants no additional access.
 
+### Docs suggestions
+
+On `develop`, `gws docs +suggest` provides a guided workflow for Google Docs
+suggestions. It can insert text, replace one exact text run, propose a range
+deletion, list the structured document with suggestion context, and accept,
+reject, or delete an existing suggestion:
+
+```bash
+gws docs +suggest insert --document DOC_ID --text 'Suggested text'
+gws docs +suggest replace --document DOC_ID --find 'old text' --text 'new text'
+gws docs +suggest delete-text --document DOC_ID --start-index 10 --end-index 20
+gws docs +suggest list --document DOC_ID
+gws docs +suggest accept --document DOC_ID --suggestion-id SUGGESTION_ID
+```
+
+The helper applies the preview-only `writeMode` request fields internally, so
+these commands do not need `--allow-unknown-fields`. Suggestion writes remain
+subject to Google Workspace Developer Preview access and document permissions.
+
 ```bash
 # Preview a suggested insertion (Docs Developer Preview).
 gws docs documents batchUpdate \
@@ -438,6 +457,7 @@ gws drive --help      # shows +upload …
 | `sheets` | `+append` | Append a row to a spreadsheet |
 | `sheets` | `+read` | Read values from a spreadsheet |
 | `docs` | `+write` | Append text to a document |
+| `docs` | `+suggest` | Create and manage document suggestions |
 | `chat` | `+send` | Send a message to a space |
 | `drive` | `+upload` | Upload a file with automatic metadata |
 | `calendar` | `+insert` | Create a new event |

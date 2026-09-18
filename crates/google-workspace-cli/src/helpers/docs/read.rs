@@ -76,7 +76,7 @@ pub(super) async fn handle(
 
 /// Token acquisition is lazy so local validation and dry-run never read
 /// credentials. The executor remains responsible for HTTP and sanitization.
-pub(super) async fn run(
+pub(crate) async fn run(
     doc: &RestDescription,
     matches: &ArgMatches,
     sanitize: &SanitizeConfig,
@@ -94,7 +94,9 @@ pub(super) async fn run(
     let dry_run = matches.get_flag("dry-run");
     let token = if dry_run { None } else { Some(token.await?) };
     let format = matches
-        .get_one::<String>("format")
+        .try_get_one::<String>("format")
+        .ok()
+        .flatten()
         .map(|f| OutputFormat::from_str(f))
         .unwrap_or_default();
     let result = executor::execute_method(
