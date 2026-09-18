@@ -353,6 +353,23 @@ async fn load_credentials_with_loader(
     default_path: &std::path::Path,
     load_encrypted: impl FnOnce(&std::path::Path) -> anyhow::Result<String>,
 ) -> anyhow::Result<Credential> {
+    load_credentials_with_loaders(
+        env_file,
+        enc_path,
+        default_path,
+        |path| std::fs::symlink_metadata(path),
+        load_encrypted,
+    )
+    .await
+}
+
+async fn load_credentials_with_loaders(
+    env_file: Option<&str>,
+    enc_path: &std::path::Path,
+    default_path: &std::path::Path,
+    metadata: impl FnOnce(&std::path::Path) -> std::io::Result<std::fs::Metadata>,
+    load_encrypted: impl FnOnce(&std::path::Path) -> anyhow::Result<String>,
+) -> anyhow::Result<Credential> {
     // 1. Explicit env var — plaintext file (User or Service Account)
     if let Some(path) = env_file {
         let p = PathBuf::from(path);
@@ -367,8 +384,19 @@ async fn load_credentials_with_loader(
         );
     }
 
-    // 2. Encrypted credentials
-    if enc_path.exists() {
+    // 2. Encrypted credentials. Inspect symlink metadata so dangling symlinks
+    // and inaccessible paths are treated as credential failures, not absence.
+    let encrypted_present = match metadata(enc_path) {
+        Ok(_) => true,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(_) => {
+            anyhow::bail!(
+                "Failed to inspect saved credentials at {}. Credentials and token caches have been preserved; no fallback credentials were used.",
+                crate::output::sanitize_for_terminal(&enc_path.display().to_string())
+            )
+        }
+    };
+    if encrypted_present {
         // A read, decryption, or keyring failure does not mean the files are
         // disposable. Stop here so a retry cannot silently select another account.
         // Do not render backend error details, which may contain sensitive data.
@@ -908,6 +936,45 @@ mod tests {
                 assert_eq!(std::fs::read_to_string(&adc_path).unwrap(), fallback_json);
             }
         }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_load_credentials_dangling_encrypted_symlink_blocks_fallback() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let enc_path = dir.path().join("credentials.enc");
+        let fallback_path = dir.path().join("credentials.json");
+        let fallback_json = r#"{"client_id":"fallback","client_secret":"secret","refresh_token":"refresh","type":"authorized_user"}"#;
+        std::fs::write(&fallback_path, fallback_json).unwrap();
+        symlink(dir.path().join("missing-encrypted"), &enc_path).unwrap();
+
+        let error = load_credentials_inner(None, &enc_path, &fallback_path)
+            .await
+            .expect_err("dangling encrypted credential symlink must block fallback");
+        assert!(error.to_string().contains("saved credentials"));
+    }
+
+    #[tokio::test]
+    async fn test_load_credentials_metadata_failure_blocks_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        let enc_path = dir.path().join("credentials.enc");
+        let fallback_path = dir.path().join("credentials.json");
+        let error = load_credentials_with_loaders(
+            None,
+            &enc_path,
+            &fallback_path,
+            |_| Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied)),
+            |_| Ok(String::new()),
+        )
+        .await
+        .expect_err("credential metadata failures must block fallback");
+        assert!(error
+            .to_string()
+            .contains("Failed to inspect saved credentials"));
+        assert!(!error.to_string().contains("No credentials found"));
     }
 
     #[tokio::test]
