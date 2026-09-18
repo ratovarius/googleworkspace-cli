@@ -339,38 +339,74 @@ fn collect_comment_anchors_recursive(
     }
 }
 
-type TextRun = (Option<String>, i64, i64, String);
+type TextRun = (Option<String>, Option<String>, i64, i64, String);
 
 fn collect_text_runs(document: &Value) -> Vec<TextRun> {
     let mut runs = Vec::new();
-    collect_text_runs_recursive(document, None, &mut runs);
+    if let Some(tabs) = document.get("tabs").and_then(Value::as_array) {
+        for tab in tabs {
+            collect_tab_text_runs(tab, &mut runs);
+        }
+    }
     runs
 }
 
-fn collect_text_runs_recursive(value: &Value, tab_id: Option<String>, runs: &mut Vec<TextRun>) {
+fn collect_tab_text_runs(tab: &Value, runs: &mut Vec<TextRun>) {
+    let tab_id = tab.get("tabId").and_then(Value::as_str).map(String::from);
+    if let Some(blocks) = tab.get("blocks") {
+        collect_text_runs_recursive(blocks, tab_id.clone(), None, runs);
+    }
+    for segment_name in ["headers", "footers", "footnotes"] {
+        if let Some(segments) = tab.get(segment_name).and_then(Value::as_object) {
+            for (segment_id, segment) in segments {
+                if let Some(blocks) = segment.get("blocks") {
+                    collect_text_runs_recursive(
+                        blocks,
+                        tab_id.clone(),
+                        Some(segment_id.clone()),
+                        runs,
+                    );
+                }
+            }
+        }
+    }
+    if let Some(children) = tab.get("childTabs").and_then(Value::as_array) {
+        for child in children {
+            collect_tab_text_runs(child, runs);
+        }
+    }
+}
+
+fn collect_text_runs_recursive(
+    value: &Value,
+    tab_id: Option<String>,
+    segment_id: Option<String>,
+    runs: &mut Vec<TextRun>,
+) {
     match value {
         Value::Object(object) => {
-            let tab_id = object
-                .get("tabId")
-                .and_then(Value::as_str)
-                .map(String::from)
-                .or(tab_id);
             if object.get("type").and_then(Value::as_str) == Some("text") {
                 if let (Some(start), Some(end), Some(text)) = (
                     object.get("startIndex").and_then(Value::as_i64),
                     object.get("endIndex").and_then(Value::as_i64),
                     object.get("text").and_then(Value::as_str),
                 ) {
-                    runs.push((tab_id.clone(), start, end, text.to_string()));
+                    runs.push((
+                        tab_id.clone(),
+                        segment_id.clone(),
+                        start,
+                        end,
+                        text.to_string(),
+                    ));
                 }
             }
             for child in object.values() {
-                collect_text_runs_recursive(child, tab_id.clone(), runs);
+                collect_text_runs_recursive(child, tab_id.clone(), segment_id.clone(), runs);
             }
         }
         Value::Array(array) => {
             for child in array {
-                collect_text_runs_recursive(child, tab_id.clone(), runs);
+                collect_text_runs_recursive(child, tab_id.clone(), segment_id.clone(), runs);
             }
         }
         _ => {}
@@ -385,18 +421,26 @@ fn resolve_range(range: &Value, runs: &[TextRun]) -> Value {
         return Value::Null;
     };
     let tab_id = range.get("tabId").and_then(Value::as_str);
+    let segment_id = range
+        .get("segmentId")
+        .and_then(Value::as_str)
+        .filter(|segment| !segment.is_empty());
     let tab_count = runs
         .iter()
-        .filter_map(|(run_tab, _, _, _)| run_tab.as_deref())
+        .filter_map(|(run_tab, _, _, _, _)| run_tab.as_deref())
         .collect::<std::collections::HashSet<_>>()
         .len();
     let mut fragments = Vec::new();
-    for (run_tab, run_start, run_end, text) in runs {
+    for (run_tab, run_segment, run_start, run_end, text) in runs {
         let tab_matches = match tab_id {
             Some(tab_id) => run_tab.as_deref() == Some(tab_id),
             None => run_tab.is_none() || tab_count <= 1,
         };
-        if !tab_matches || *run_end <= start || *run_start >= end {
+        if !tab_matches
+            || run_segment.as_deref() != segment_id
+            || *run_end <= start
+            || *run_start >= end
+        {
             continue;
         }
         let from = (start.max(*run_start) - *run_start) as usize;

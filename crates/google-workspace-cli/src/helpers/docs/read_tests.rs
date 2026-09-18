@@ -181,6 +181,41 @@ fn comments_without_threads_are_returned_as_empty() {
 }
 
 #[test]
+fn comment_anchor_resolution_respects_document_segments() {
+    let mut input = legacy();
+    input["comments"] = json!([
+        {"commentId": "body-comment", "anchorId": "body-anchor"},
+        {"commentId": "header-comment", "anchorId": "header-anchor"}
+    ]);
+    input["tabs"] = json!([{
+        "tabProperties": {"tabId": "tab-1"},
+        "documentTab": {
+            "body": {"content": [{
+                "startIndex": 1, "endIndex": 7,
+                "paragraph": {"elements": [{
+                    "startIndex": 1, "endIndex": 7,
+                    "textRun": {"content": "body text"}
+                }]}
+            }]},
+            "headers": {"header-1": {"content": [{
+                "startIndex": 1, "endIndex": 7,
+                "paragraph": {"elements": [{
+                    "startIndex": 1, "endIndex": 7,
+                    "textRun": {"content": "header text"}
+                }]}
+            }]}},
+            "commentAnchors": {
+                "body-anchor": {"ranges": [{"startIndex": 1, "endIndex": 5}]},
+                "header-anchor": {"ranges": [{"segmentId": "header-1", "startIndex": 1, "endIndex": 7}]}
+            }
+        }
+    }]);
+    let output = read::normalize_with_comments(&input).unwrap();
+    assert_eq!(output["comments"][0]["referencedText"], json!(["body"]));
+    assert_eq!(output["comments"][1]["referencedText"], json!(["header"]));
+}
+
+#[test]
 fn request_rejects_partial_masks_lossy_views_and_parameter_bypasses() {
     for params in [
         r#"{"fields":"title"}"#,
