@@ -110,8 +110,12 @@ fn auto_text_preserves_page_number_and_count_with_indices_and_styles() {
 
 #[test]
 fn request_requires_full_inline_tabs_and_preserves_other_params() {
-    let params =
-        read::build_params("synthetic", Some(r#"{"fields":"*","prettyPrint":false}"#)).unwrap();
+    let params = read::build_params_with_comments(
+        "synthetic",
+        Some(r#"{"fields":"*","prettyPrint":false}"#),
+        false,
+    )
+    .unwrap();
     assert_eq!(
         params,
         json!({
@@ -120,12 +124,54 @@ fn request_requires_full_inline_tabs_and_preserves_other_params() {
         })
     );
     assert_eq!(
-        read::build_params("id", None).unwrap()["includeTabsContent"],
+        read::build_params_with_comments("id", None, false).unwrap()["includeTabsContent"],
         true
     );
-    assert!(read::build_params("id", Some(
+    assert!(read::build_params_with_comments("id", Some(
         r#"{"includeTabsContent":true,"suggestionsViewMode":"SUGGESTIONS_INLINE","documentId":"id"}"#
-    )).is_ok());
+    ), false).is_ok());
+}
+
+#[test]
+fn comments_are_opt_in_and_request_includes_comment_view_mode() {
+    let params = read::build_params_with_comments("synthetic", None, true).unwrap();
+    assert_eq!(params["commentsViewMode"], "COMMENTS_VIEW_MODE_INCLUDED");
+}
+
+#[test]
+fn comments_include_text_for_each_anchor_range() {
+    let mut input = legacy();
+    input["comments"] = json!([{
+        "commentId": "c1",
+        "anchorId": "a1",
+        "headPost": {"content": "Please review"},
+        "status": "OPEN"
+    }]);
+    input["tabs"] = json!([{
+        "tabProperties": {"tabId": "tab-1"},
+        "documentTab": {
+            "body": {"content": [{
+                "startIndex": 1, "endIndex": 12,
+                "paragraph": {"elements": [{
+                    "startIndex": 1, "endIndex": 12,
+                    "textRun": {"content": "Hello world"}
+                }]}
+            }]},
+            "commentAnchors": {
+                "a1": {"anchorId": "a1", "ranges": [
+                    {"startIndex": 7, "endIndex": 12},
+                    {"startIndex": 1, "endIndex": 6}
+                ]}
+            }
+        }
+    }]);
+
+    let output = read::normalize_with_comments(&input).unwrap();
+    assert_eq!(output["comments"][0]["commentId"], "c1");
+    assert_eq!(
+        output["comments"][0]["referencedText"],
+        json!(["world", "Hello"])
+    );
 }
 
 #[test]
@@ -147,7 +193,10 @@ fn request_rejects_partial_masks_lossy_views_and_parameter_bypasses() {
         "null",
         "{",
     ] {
-        assert!(read::build_params("id", Some(params)).is_err(), "{params}");
+        assert!(
+            read::build_params_with_comments("id", Some(params), false).is_err(),
+            "{params}"
+        );
     }
     for id in [
         "",
@@ -157,7 +206,10 @@ fn request_rejects_partial_masks_lossy_views_and_parameter_bypasses() {
         "id\n",
         "%2e%2e",
     ] {
-        assert!(read::build_params(id, None).is_err(), "{id:?}");
+        assert!(
+            read::build_params_with_comments(id, None, false).is_err(),
+            "{id:?}"
+        );
     }
 }
 

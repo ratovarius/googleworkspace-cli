@@ -171,6 +171,19 @@ The helper applies the preview-only `writeMode` request fields internally, so
 these commands do not need `--allow-unknown-fields`. Suggestion writes remain
 subject to Google Workspace Developer Preview access and document permissions.
 
+### Reading comments and their text anchors
+
+Use `--include-comments` with `gws docs +read` to retrieve comment threads and
+resolve each anchored range to the text it refers to:
+
+```bash
+gws docs +read --document DOC_ID --include-comments
+```
+
+Each comment includes its thread data, anchor ranges, and `referencedText`, an
+array with one value per anchored range. Unresolvable ranges are returned as
+`null`; comments remain opt-in because they may contain sensitive content.
+
 ```bash
 # Preview a suggested insertion (Docs Developer Preview).
 gws docs documents batchUpdate \
