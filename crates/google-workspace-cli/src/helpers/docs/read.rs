@@ -29,6 +29,7 @@ pub(super) fn command() -> Command {
         .about("[Helper] Read a document as compact structured content")
         .arg(Arg::new("document").long("document").help("Document ID").required(true).value_name("ID"))
         .arg(Arg::new("params").long("params").help("Additional documents.get API parameters as JSON").value_name("JSON"))
+        .arg(Arg::new("include-comments").long("include-comments").help("Include comments and their referenced text").action(clap::ArgAction::SetTrue))
         .after_help(
             "\
 EXAMPLES:
@@ -52,7 +53,8 @@ TIPS:
   revisionId and suggestionsViewMode are retained when returned. Missing revisionId is not synthesized.
   source=legacyBody indicates a fallback response without populated tabs; all-tab coverage cannot be confirmed.
   This is a content view, not a layout renderer or lossless API round trip. Inherited styles are not resolved.
-  Suggestions remain inline, including proposed deletions; this helper does not accept or reject suggestions.
+    Suggestions remain inline, including proposed deletions; this helper does not accept or reject suggestions.
+    --include-comments requests comment threads and resolves each comment anchor to referenced text.
   Use raw documents get for unsupported views or field masks. Missing body content produces an error.
   --dry-run validates and prints a request plan without acquiring credentials or fetching document content.
   --sanitize uses the existing Model Armor policy before normalization and retains _sanitization metadata.",
@@ -82,9 +84,16 @@ pub(crate) async fn run(
     sanitize: &SanitizeConfig,
     token: impl Future<Output = Result<String, GwsError>>,
 ) -> Result<String, GwsError> {
-    let params = build_params(
+    let include_comments = matches
+        .try_get_one::<bool>("include-comments")
+        .ok()
+        .flatten()
+        .copied()
+        .unwrap_or(false);
+    let params = build_params_with_comments(
         matches.get_one::<String>("document").unwrap(),
         matches.get_one::<String>("params").map(String::as_str),
+        include_comments,
     )?;
     let method = doc
         .resources
@@ -121,11 +130,21 @@ pub(crate) async fn run(
     )
     .await?
     .ok_or_else(|| invalid_content("expected a JSON document response"))?;
-    let output = if dry_run { result } else { normalize(&result)? };
+    let output = if dry_run {
+        result
+    } else if include_comments {
+        normalize_with_comments(&result)?
+    } else {
+        normalize(&result)?
+    };
     Ok(format_value(&output, &format))
 }
 
-pub(super) fn build_params(document: &str, params: Option<&str>) -> Result<Value, GwsError> {
+pub(super) fn build_params_with_comments(
+    document: &str,
+    params: Option<&str>,
+    include_comments: bool,
+) -> Result<Value, GwsError> {
     crate::validate::validate_resource_name(document)?;
     let mut params: Map<String, Value> = match params {
         Some(raw) => serde_json::from_str(raw)
@@ -152,6 +171,22 @@ pub(super) fn build_params(document: &str, params: Option<&str>) -> Result<Value
             )));
         }
         params.insert(key.into(), required);
+    }
+    if include_comments {
+        let required = json!("COMMENTS_VIEW_MODE_INCLUDED");
+        if params
+            .get("commentsViewMode")
+            .is_some_and(|value| value != &required)
+        {
+            return Err(GwsError::Validation(
+                "docs +read with --include-comments requires commentsViewMode=COMMENTS_VIEW_MODE_INCLUDED".into(),
+            ));
+        }
+        params.insert("commentsViewMode".into(), required);
+    } else if params.contains_key("commentsViewMode") {
+        return Err(GwsError::Validation(
+            "commentsViewMode requires --include-comments".into(),
+        ));
     }
     if params.get("alt").is_some_and(|v| v != "json") {
         return Err(GwsError::Validation("docs +read requires alt=json".into()));
@@ -235,6 +270,193 @@ pub(super) fn normalize(document: &Value) -> Result<Value, GwsError> {
     result.insert("tabs".into(), json!(tabs));
     result.insert("outline".into(), json!(outline));
     Ok(Value::Object(result))
+}
+
+pub(super) fn normalize_with_comments(document: &Value) -> Result<Value, GwsError> {
+    let mut output = normalize(document)?;
+    let comments: &[Value] = match document.get("comments") {
+        Some(comments) => comments
+            .as_array()
+            .ok_or_else(|| invalid_content("response comments field is not an array"))?,
+        None => &[],
+    };
+    let anchors = collect_comment_anchors(document);
+    let text_runs = collect_text_runs(&output);
+    let enriched = comments
+        .iter()
+        .map(|comment| {
+            let mut comment = object(comment)?;
+            let anchor_id = comment.get("anchorId").and_then(Value::as_str);
+            let referenced_text = anchor_id
+                .and_then(|id| anchors.get(id))
+                .map(|ranges| {
+                    ranges
+                        .iter()
+                        .map(|range| resolve_range(range, &text_runs))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            comment.insert("referencedText".into(), Value::Array(referenced_text));
+            Ok(Value::Object(comment))
+        })
+        .collect::<Result<Vec<_>, GwsError>>()?;
+    output["comments"] = Value::Array(enriched);
+    Ok(output)
+}
+
+fn collect_comment_anchors(document: &Value) -> std::collections::HashMap<String, Vec<Value>> {
+    let mut anchors = std::collections::HashMap::new();
+    collect_comment_anchors_recursive(document, &mut anchors);
+    anchors
+}
+
+fn collect_comment_anchors_recursive(
+    value: &Value,
+    anchors: &mut std::collections::HashMap<String, Vec<Value>>,
+) {
+    match value {
+        Value::Object(object) => {
+            if let Some(comment_anchors) = object.get("commentAnchors").and_then(Value::as_object) {
+                for (id, anchor) in comment_anchors {
+                    let ranges = anchor
+                        .get("ranges")
+                        .and_then(Value::as_array)
+                        .cloned()
+                        .unwrap_or_default();
+                    anchors.insert(id.clone(), ranges);
+                }
+            }
+            for child in object.values() {
+                collect_comment_anchors_recursive(child, anchors);
+            }
+        }
+        Value::Array(array) => {
+            for child in array {
+                collect_comment_anchors_recursive(child, anchors);
+            }
+        }
+        _ => {}
+    }
+}
+
+type TextRun = (Option<String>, Option<String>, i64, i64, String);
+
+fn collect_text_runs(document: &Value) -> Vec<TextRun> {
+    let mut runs = Vec::new();
+    if let Some(tabs) = document.get("tabs").and_then(Value::as_array) {
+        for tab in tabs {
+            collect_tab_text_runs(tab, &mut runs);
+        }
+    }
+    runs
+}
+
+fn collect_tab_text_runs(tab: &Value, runs: &mut Vec<TextRun>) {
+    let tab_id = tab.get("tabId").and_then(Value::as_str).map(String::from);
+    if let Some(blocks) = tab.get("blocks") {
+        collect_text_runs_recursive(blocks, tab_id.clone(), None, runs);
+    }
+    for segment_name in ["headers", "footers", "footnotes"] {
+        if let Some(segments) = tab.get(segment_name).and_then(Value::as_object) {
+            for (segment_id, segment) in segments {
+                if let Some(blocks) = segment.get("blocks") {
+                    collect_text_runs_recursive(
+                        blocks,
+                        tab_id.clone(),
+                        Some(segment_id.clone()),
+                        runs,
+                    );
+                }
+            }
+        }
+    }
+    if let Some(children) = tab.get("childTabs").and_then(Value::as_array) {
+        for child in children {
+            collect_tab_text_runs(child, runs);
+        }
+    }
+}
+
+fn collect_text_runs_recursive(
+    value: &Value,
+    tab_id: Option<String>,
+    segment_id: Option<String>,
+    runs: &mut Vec<TextRun>,
+) {
+    match value {
+        Value::Object(object) => {
+            if object.get("type").and_then(Value::as_str) == Some("text") {
+                if let (Some(start), Some(end), Some(text)) = (
+                    object.get("startIndex").and_then(Value::as_i64),
+                    object.get("endIndex").and_then(Value::as_i64),
+                    object.get("text").and_then(Value::as_str),
+                ) {
+                    runs.push((
+                        tab_id.clone(),
+                        segment_id.clone(),
+                        start,
+                        end,
+                        text.to_string(),
+                    ));
+                }
+            }
+            for child in object.values() {
+                collect_text_runs_recursive(child, tab_id.clone(), segment_id.clone(), runs);
+            }
+        }
+        Value::Array(array) => {
+            for child in array {
+                collect_text_runs_recursive(child, tab_id.clone(), segment_id.clone(), runs);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn resolve_range(range: &Value, runs: &[TextRun]) -> Value {
+    let Some(start) = range.get("startIndex").and_then(Value::as_i64) else {
+        return Value::Null;
+    };
+    let Some(end) = range.get("endIndex").and_then(Value::as_i64) else {
+        return Value::Null;
+    };
+    let tab_id = range.get("tabId").and_then(Value::as_str);
+    let segment_id = range
+        .get("segmentId")
+        .and_then(Value::as_str)
+        .filter(|segment| !segment.is_empty());
+    let tab_count = runs
+        .iter()
+        .filter_map(|(run_tab, _, _, _, _)| run_tab.as_deref())
+        .collect::<std::collections::HashSet<_>>()
+        .len();
+    let mut fragments = Vec::new();
+    for (run_tab, run_segment, run_start, run_end, text) in runs {
+        let tab_matches = match tab_id {
+            Some(tab_id) => run_tab.as_deref() == Some(tab_id),
+            None => run_tab.is_none() || tab_count <= 1,
+        };
+        if !tab_matches
+            || run_segment.as_deref() != segment_id
+            || *run_end <= start
+            || *run_start >= end
+        {
+            continue;
+        }
+        let from = (start.max(*run_start) - *run_start) as usize;
+        let to = (end.min(*run_end) - *run_start) as usize;
+        fragments.push(slice_utf16(text, from, to));
+    }
+    if fragments.is_empty() {
+        Value::Null
+    } else {
+        Value::String(fragments.concat())
+    }
+}
+
+fn slice_utf16(text: &str, start: usize, end: usize) -> String {
+    let units: Vec<u16> = text.encode_utf16().collect();
+    String::from_utf16_lossy(&units[start.min(units.len())..end.min(units.len())])
 }
 
 fn normalize_tab(

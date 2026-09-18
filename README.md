@@ -171,6 +171,33 @@ The helper applies the preview-only `writeMode` request fields internally, so
 these commands do not need `--allow-unknown-fields`. Suggestion writes remain
 subject to Google Workspace Developer Preview access and document permissions.
 
+### Reading comments and their text anchors
+
+Use `--include-comments` with `gws docs +read` to retrieve comment threads and
+resolve each anchored range to the text it refers to:
+
+```bash
+gws docs +read --document DOC_ID --include-comments
+```
+
+Each comment includes its thread data, anchor ranges, and `referencedText`, an
+array with one value per anchored range. Unresolvable ranges are returned as
+`null`; comments remain opt-in because they may contain sensitive content.
+
+Create a comment without manually constructing the preview API payload:
+
+```bash
+gws docs +comment create \
+  --document DOC_ID \
+  --text 'Please review this.' \
+  --start-index 1 \
+  --end-index 20
+```
+
+The helper validates UTF-16 ranges and applies the preview-field opt-in
+internally, so `--allow-unknown-fields` is not required. The request still
+requires edit access and Google Workspace Developer Preview availability.
+
 ```bash
 # Preview a suggested insertion (Docs Developer Preview).
 gws docs documents batchUpdate \
@@ -458,6 +485,7 @@ gws drive --help      # shows +upload …
 | `sheets` | `+read` | Read values from a spreadsheet |
 | `docs` | `+write` | Append text to a document |
 | `docs` | `+suggest` | Create and manage document suggestions |
+| `docs` | `+comment` | Create anchored document comments |
 | `chat` | `+send` | Send a message to a space |
 | `drive` | `+upload` | Upload a file with automatic metadata |
 | `calendar` | `+insert` | Create a new event |
